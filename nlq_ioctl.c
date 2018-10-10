@@ -336,7 +336,6 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 				else
 					return errno = ENODEV, -1;
 			} else {
-				printf("DELETE OLD\n");
 				ret_value = nlq_general_rtconversation(msgs.del_msg, handlers_table, stackinfo,
 						nlq_process_null_cb, NULL, NULL, NULL);
 				if (ret_value < 0) {
@@ -345,7 +344,6 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 				}
 			}
 			if (msgs.new_msg != NULL) {
-				printf("ADD NEW\n");
 				ret_value = nlq_general_rtconversation(msgs.new_msg, handlers_table, stackinfo,
             nlq_process_null_cb, NULL, NULL, NULL);
 				return nlq_return_errno(ret_value);
