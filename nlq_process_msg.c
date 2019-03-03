@@ -118,10 +118,7 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 }
 
 static ssize_t recvnlmsg(int fd, void *buf, size_t len, int flags) {
-  struct iovec iov[] = {{buf, len}};
-  struct sockaddr_nl sanl;
-  struct msghdr hdr = {&sanl, sizeof(sanl), iov, 1, NULL, 0, 0};
-  return recvmsg(fd, &hdr, flags);
+	return recvfrom(fd, buf, len, flags, NULL, NULL);
 }
 
 int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
