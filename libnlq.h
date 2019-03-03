@@ -37,9 +37,8 @@ static inline void nlq_complete_enqueue(struct nlq_msg *nlq_msg, struct nlq_msg 
 static inline void nlq_dropmsg(struct nlq_msg *nlq_msg); // complete and free
 
 /********************** CLIENT SIDE ************************/
-/* client netlink socket creation/bind sendmsg */
-int nlq_open_bind(int protocol, pid_t pid, uint32_t groups);
-pid_t nlq_getpid(int fd);
+/* client netlink socket creation/send */
+int nlq_open(int protocol);
 static inline ssize_t nlq_send(int fd, struct nlq_msg *nlq_msg);
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg);
 
@@ -51,7 +50,7 @@ int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
 int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
 		const void *argin, void *argout, void *argenv);
 
-/* open-bind-complete-send-free-recv-processreply = conversation
+/* open-complete-send-free-recv-processreply = conversation
 	 the whole interaction in a single function */
 int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);

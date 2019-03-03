@@ -57,22 +57,8 @@ static uint8_t family_no_attr_types[RTM_NR_FAMILIES] = {
 #define NLA_NEXT(nla,attrlen) ((attrlen) -= RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK)), \
          (struct nlattr*)(((char*)(nla)) + RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK))))
 
-int nlq_open_bind(int protocol, pid_t pid, uint32_t groups) {
-  int fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
-  if (fd >= 0) {
-    struct sockaddr_nl sanl = {AF_NETLINK, 0, pid, groups};
-    bind(fd, (struct sockaddr *) &sanl, sizeof(struct sockaddr_nl));
-  }
-  return fd;
-}
-
-pid_t nlq_getpid(int fd) {
-  struct sockaddr_nl sanl;
-  socklen_t sanlen = sizeof(sanl);
-  if (getsockname(fd, (struct sockaddr *) &sanl, &sanlen) < 0)
-    return -1;
-  else
-    return sanl.nl_pid;
+int nlq_open(int protocol) {
+  return socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
 }
 
 int nlq_process_rtmsg(struct nlmsghdr *msg,
@@ -117,21 +103,17 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
   }
 }
 
-static ssize_t recvnlmsg(int fd, void *buf, size_t len, int flags) {
-	return recvfrom(fd, buf, len, flags, NULL, NULL);
-}
-
 int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
   int againerror = 1;
 
   while (againerror > 0) {
-    ssize_t replylen = recvnlmsg(fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
+    ssize_t replylen = recv(fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
     //printf("AGAINERRor %d %d\n",againerror, replylen);
     if (replylen <= 0)
-      againerror = replylen;
-    else {
+      replylen = 16384;
+    {
       char reply[replylen];
-      replylen = recvnlmsg(fd, reply, replylen, 0);
+      replylen = recv(fd, reply, replylen, 0);
       //printf("RL %d %p\n",replylen, reply);
       if (replylen <= 0)
         againerror = replylen;
@@ -151,7 +133,7 @@ int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *arg
 
 int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv) {
-	int fd = nlq_open_bind(NETLINK_ROUTE, 0, 0);
+	int fd = nlq_open(NETLINK_ROUTE);
 	int error;
 	if (fd < 0)
 		return -EPROTONOSUPPORT;
