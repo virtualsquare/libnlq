@@ -39,7 +39,7 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg); // complete and free
 /********************** CLIENT SIDE ************************/
 /* client netlink socket creation/send */
 int nlq_open(int protocol);
-static inline ssize_t nlq_send(int fd, struct nlq_msg *nlq_msg);
+static inline ssize_t nlq_msgsend(int fd, struct nlq_msg *nlq_msg);
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg);
 
 /* client rt_netlink reply management */
@@ -202,14 +202,14 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg) {
 	nlq_freemsg(nlq_msg);
 }
 
-static inline ssize_t nlq_send(int fd, struct nlq_msg *nlq_msg) {
+static inline ssize_t nlq_msgsend(int fd, struct nlq_msg *nlq_msg) {
 	return send(fd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
 }
 
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
 	ssize_t retval;
 	nlq_complete(nlq_msg);
-	retval = nlq_send(fd, nlq_msg);
+	retval = nlq_msgsend(fd, nlq_msg);
 	nlq_freemsg(nlq_msg);
 	return retval;
 }

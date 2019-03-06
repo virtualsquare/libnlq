@@ -92,7 +92,7 @@ Netlink messages:
 * attributes can be further added by `nlq_addattr`.
 * `nlq_complete` states that the message is complete.
 * Complete nlq messages can be enqueued and dequeued using `nlq_enqueue` and `nlq_dequeue` (`nlq_head` returns the first element of the queue, not dequeuing it and `nlq_length` returns the length of the queue)
-* Complete nlq messages can be sent on a Netlink socket using `nlq_send`.
+* Complete nlq messages can be sent on a Netlink socket using `nlq_msgsend`.
 * `nlq_freemsg` deallocates a message, `nlq_free` deallocates all the elements of a queue.
 
 Once the netlink message has been sent the reply message (or sequence of messages) can be received and parsed using `nlq_recv_process_rtreply`. For each packet received `nlq_recv_process_rtreply` uses a callback function to process the results.
