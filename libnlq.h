@@ -47,12 +47,12 @@ typedef int (*nlq_doit_f)(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv);
 int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
     const void *argin, void *argout, void *argenv);
-int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
+static inline int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
 		const void *argin, void *argout, void *argenv);
 
 /* open-complete-send-free-recv-processreply = conversation
 	 the whole interaction in a single function */
-int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
+static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
 
 /* negative retval -> errno conversion */
@@ -89,7 +89,7 @@ int nlq_proc_net_dev(FILE *f);
 	 AF_INET->4, AF_INET6->16, 0 otherwise */
 static inline int nlq_family2addrlen(int family);
 
-/********************** USER SPACE STACK SUPPORT  ************************/
+/********************** STACKS in USER SPACE SUPPORT  ************************/
 struct nlqx_functions {
 	int (*msocket)(void *stack, int domain, int type, int protocol);
 	ssize_t (*recv)(void *stack, int sockfd, void *buf, size_t len, int flags);
@@ -101,6 +101,26 @@ static int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol);
 static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags);
 static inline ssize_t nlqx_sendmsg(struct nlqx_functions *xf, void *stack, int sockfd, struct nlq_msg *nlq_msg);
 static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd);
+
+int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb, 
+		const void *argin, void *argout, void *argenv);
+int nlqx_rtconversation(struct nlqx_functions *xf, void *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
+    const void *argin, void *argout, void *argenv);
+
+/* libc function for user space stacks */
+unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const char *ifname);
+char *nlqx_if_indextoname(struct nlqx_functions *xf, void *stack, unsigned int ifindex, char *ifname);
+struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stack);
+void nlqx_if_freenameindex(struct nlqx_functions *xf, void *stack, struct nlq_if_nameindex *ptr);
+int nlqx_ioctl(struct nlqx_functions *xf, void *stack, unsigned long request, void *arg);
+
+int nlqx_linksetupdown(struct nlqx_functions *xf, void *stack, unsigned int ifindex, int updown);
+int nlqx_ipaddr_add(struct nlqx_functions *xf, void *stack, int family, void *addr, int prefixlen, int ifindex);
+int nlqx_ipaddr_del(struct nlqx_functions *xf, void *stack, int family, void *addr, int prefixlen, int ifindex);
+int nlqx_iproute_add(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+int nlqx_iproute_del(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+
+int nlqx_proc_net_dev(struct nlqx_functions *xf, void *stack, FILE *f);
 
 /********************** SERVER SIDE ************************/
 /* RT NETLINK FAMILIES */
@@ -161,10 +181,10 @@ int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv);
 static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg, 
-		nlq_request_handlers_table handlers_table, void *stackinfo,
+		nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
 	if (handlers_table == NULL)
-		return nlq_rtconversation(nlq_msg, cb, argin, argout, argenv);
+		return nlqx_rtconversation(xf, stackinfo, nlq_msg, cb, argin, argout, argenv);
 	else
 		return nlq_server_rtconversation(nlq_msg, handlers_table, stackinfo,
 				 cb, argin, argout, argenv);
@@ -243,6 +263,14 @@ static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd)
     return close(fd);
 }
 
+static inline ssize_t nlqx_complete_send_freemsg(struct nlqx_functions *xf, void *stack, int fd, struct nlq_msg *nlq_msg) {
+	ssize_t retval;
+	nlq_complete(nlq_msg);
+	retval = nlqx_sendmsg(xf, stack, fd, nlq_msg);
+	nlq_freemsg(nlq_msg);
+	return retval;
+}
+
 static inline int nlq_open(int protocol) {
   return nlqx_open(NULL, NULL, protocol);
 }
@@ -251,12 +279,18 @@ static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg) {
 	return nlqx_sendmsg(NULL, NULL, fd, nlq_msg);
 }
 
+static inline int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
+		const void *argin, void *argout, void *argenv) {
+	nlqx_recv_process_rtreply(NULL, NULL, fd, cb, argin, argout, argenv);
+}
+
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
-	ssize_t retval;
-	nlq_complete(nlq_msg);
-	retval = nlq_sendmsg(fd, nlq_msg);
-	nlq_freemsg(nlq_msg);
-	return retval;
+	return nlqx_complete_send_freemsg(NULL, NULL, fd, nlq_msg);
+}
+
+static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
+    const void *argin, void *argout, void *argenv) {
+	return nlqx_rtconversation(NULL, NULL, nlq_msg, cb, argin, argout, argenv);
 }
 
 static inline int nlq_return_errno(int ret_value) {

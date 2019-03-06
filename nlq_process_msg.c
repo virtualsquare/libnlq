@@ -99,17 +99,18 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
   }
 }
 
-int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
+int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb, 
+		const void *argin, void *argout, void *argenv) {
   int againerror = 1;
 
   while (againerror > 0) {
-    ssize_t replylen = nlqx_recv(NULL, NULL, fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
+    ssize_t replylen = nlqx_recv(xf, stack, fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
     //printf("AGAINERRor %d %d\n",againerror, replylen);
     if (replylen <= 0)
       replylen = 16384;
     {
       char reply[replylen];
-      replylen = nlqx_recv(NULL, NULL, fd, reply, replylen, 0);
+      replylen = nlqx_recv(xf, stack, fd, reply, replylen, 0);
       //printf("RL %d %p\n",replylen, reply);
       if (replylen <= 0)
         againerror = replylen;
@@ -127,15 +128,15 @@ int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *arg
 	return againerror;
 }
 
-int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
+int nlqx_rtconversation(struct nlqx_functions *xf, void *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv) {
-	int fd = nlq_open(NETLINK_ROUTE);
+	int fd = nlqx_open(xf, stack, NETLINK_ROUTE);
 	int error;
 	if (fd < 0)
 		return -EPROTONOSUPPORT;
-	nlq_complete_send_freemsg(fd, nlq_msg);
-	error = nlq_recv_process_rtreply(fd, cb, argin, argout, argenv);
-	nlqx_close(NULL, NULL, fd);
+	nlqx_complete_send_freemsg(xf, stack, fd, nlq_msg);
+	error = nlqx_recv_process_rtreply(xf, stack, fd, cb, argin, argout, argenv);
+	nlqx_close(xf, stack, fd);
 	return error;
 }
 
