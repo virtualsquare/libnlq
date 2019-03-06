@@ -97,8 +97,8 @@ int nlq_length(struct nlq_msg *nlq_tail) {
 	else {
 		struct nlq_msg *nlq_scan;
 		int count;
-		for (nlq_scan = nlq_tail->nlq_next, count = 1; 
-				nlq_scan != nlq_tail; 
+		for (nlq_scan = nlq_tail->nlq_next, count = 1;
+				nlq_scan != nlq_tail;
 				nlq_scan = nlq_scan->nlq_next)
 			count++;
 		return count;

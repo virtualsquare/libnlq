@@ -99,7 +99,7 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
   }
 }
 
-int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb, 
+int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
   int againerror = 1;
 

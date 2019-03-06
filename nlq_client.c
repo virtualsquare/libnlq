@@ -37,9 +37,9 @@
 #define IF_NAMESIZE       16
 
 /* define to use NLM_F_DUMP instead of IFLA_IFNAME for nlq_if_nametoindex */
-// #define IF_NAMETOINDEX_DUMP 
+// #define IF_NAMETOINDEX_DUMP
 
-static int cb_if_nametoindex(struct nlmsghdr *msg, struct nlattr **attr, 
+static int cb_if_nametoindex(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
 	struct ifinfomsg *ifinfomsg = (struct ifinfomsg *) msg + 1;
 #ifdef IF_NAMETOINDEX_DUMP
@@ -73,7 +73,7 @@ unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const c
   return retvalue;
 }
 
-static int cb_if_indextoname(struct nlmsghdr *msg, struct nlattr **attr, 
+static int cb_if_indextoname(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
 	char *ifname = argenv;
 	char **retvalue = argout;
@@ -141,7 +141,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stac
 int nlqx_linksetupdown(struct nlqx_functions *xf, void *stack, unsigned int ifindex, int updown) {
 	int ret_value;
 	struct nlq_msg *msg = nlq_createmsg(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK, 0, 0);
-  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex, 
+  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex,
 			.ifi_flags=(updown) ? IFF_UP : 0, .ifi_change=IFF_UP);
 	ret_value = nlqx_rtconversation(xf,stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(ret_value);
@@ -156,9 +156,9 @@ static int __nlq_ipaddr(struct nlqx_functions *xf, void *stack,
 	} else {
 		int ret_value;
 		struct nlq_msg *msg = nlq_createmsg(request, NLM_F_REQUEST | NLM_F_ACK | xflags, 0, 0);
-		nlq_addstruct(msg, ifaddrmsg, 
-				.ifa_family = family, 
-				.ifa_prefixlen = prefixlen, 
+		nlq_addstruct(msg, ifaddrmsg,
+				.ifa_family = family,
+				.ifa_prefixlen = prefixlen,
 				.ifa_scope = RT_SCOPE_UNIVERSE,
 				.ifa_index = ifindex);
 		nlq_addattr(msg, IFA_LOCAL, addr, addrlen);

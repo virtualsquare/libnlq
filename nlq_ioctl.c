@@ -269,7 +269,7 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 		int ifa_attr;
 		uint8_t newattr[IFA_MAX + 1] = {};
 		msgs->del_msg = nlq_createmsg(RTM_DELADDR, NLM_F_REQUEST|NLM_F_ACK, 0, 0);
-		nlq_addstruct(msgs->del_msg, ifaddrmsg, .ifa_family=AF_INET, 
+		nlq_addstruct(msgs->del_msg, ifaddrmsg, .ifa_family=AF_INET,
 				.ifa_prefixlen = ifaddrmsg->ifa_prefixlen,
 				.ifa_flags = ifaddrmsg->ifa_flags,
 				.ifa_scope = ifaddrmsg->ifa_scope,
@@ -281,7 +281,7 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 				ifaddrmsg->ifa_prefixlen = mask2prefix(ntohl(addr_in->sin_addr.s_addr));
 			switch (*request) {
 				case SIOCSIFADDR:
-					newattr[IFA_LOCAL] = newattr[IFA_ADDRESS] = 1; 
+					newattr[IFA_LOCAL] = newattr[IFA_ADDRESS] = 1;
 					break;
 				case SIOCSIFDSTADDR:
 					newattr[IFA_ADDRESS] = 1;
@@ -297,7 +297,7 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 					.ifa_scope = ifaddrmsg->ifa_scope,
 					.ifa_index = ifaddrmsg->ifa_index);
 			for (ifa_attr = 0; ifa_attr <= IFA_MAX; ifa_attr++) {
-				if (newattr[ifa_attr]) 
+				if (newattr[ifa_attr])
 					nlq_addattr(msgs->new_msg, ifa_attr, &addr_in->sin_addr, sizeof(addr_in->sin_addr));
 				else if (attr[ifa_attr] != NULL)
 					nlq_addattr(msgs->new_msg, ifa_attr, attr[ifa_attr] + 1, attr[ifa_attr]->nla_len - sizeof(struct nlattr));
