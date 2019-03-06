@@ -99,7 +99,7 @@ Once the netlink message has been sent the reply message (or sequence of message
 The three opaque arguments `argin, argout, argenv` can be used to exchange data with the callback function: the request(argin), the result(argout), and the private data of the environment(argenv), respectively.
 
 The most effective way to use the low level interface is provided by `nlq_rtconversation`.
-This function is a short-cut for the entire sequence: open-bind-complete-send-free-recv-process-reply-close
+This function is a short-cut for the entire sequence: open-complete-send-free-recv-process-reply-close
 
 The implementation of a function like `if_nametoindex` can be as simple as this:
 ```C
