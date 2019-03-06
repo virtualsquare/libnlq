@@ -57,10 +57,6 @@ static uint8_t family_no_attr_types[RTM_NR_FAMILIES] = {
 #define NLA_NEXT(nla,attrlen) ((attrlen) -= RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK)), \
          (struct nlattr*)(((char*)(nla)) + RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK))))
 
-int nlq_open(int protocol) {
-  return socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
-}
-
 int nlq_process_rtmsg(struct nlmsghdr *msg,
     nlq_doit_f doit,
     const void *argin, void *argout, void *argenv) {
@@ -107,13 +103,13 @@ int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, const void *argin, void *arg
   int againerror = 1;
 
   while (againerror > 0) {
-    ssize_t replylen = recv(fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
+    ssize_t replylen = nlqx_recv(NULL, NULL, fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
     //printf("AGAINERRor %d %d\n",againerror, replylen);
     if (replylen <= 0)
       replylen = 16384;
     {
       char reply[replylen];
-      replylen = recv(fd, reply, replylen, 0);
+      replylen = nlqx_recv(NULL, NULL, fd, reply, replylen, 0);
       //printf("RL %d %p\n",replylen, reply);
       if (replylen <= 0)
         againerror = replylen;
@@ -139,7 +135,7 @@ int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
 		return -EPROTONOSUPPORT;
 	nlq_complete_send_freemsg(fd, nlq_msg);
 	error = nlq_recv_process_rtreply(fd, cb, argin, argout, argenv);
-	close(fd);
+	nlqx_close(NULL, NULL, fd);
 	return error;
 }
 

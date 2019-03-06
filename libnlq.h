@@ -38,8 +38,8 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg); // complete and free
 
 /********************** CLIENT SIDE ************************/
 /* client netlink socket creation/send */
-int nlq_open(int protocol);
-static inline ssize_t nlq_msgsend(int fd, struct nlq_msg *nlq_msg);
+static inline int nlq_open(int protocol);
+static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg);
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg);
 
 /* client rt_netlink reply management */
@@ -88,6 +88,19 @@ int nlq_proc_net_dev(FILE *f);
 /* utility family->addrlen conversion
 	 AF_INET->4, AF_INET6->16, 0 otherwise */
 static inline int nlq_family2addrlen(int family);
+
+/********************** USER SPACE STACK SUPPORT  ************************/
+struct nlqx_functions {
+	int (*msocket)(void *stack, int domain, int type, int protocol);
+	ssize_t (*recv)(void *stack, int sockfd, void *buf, size_t len, int flags);
+	ssize_t (*send)(void *stack, int sockfd, const void *buf, size_t len, int flags);
+	int (*close)(void *stack, int fd);
+};
+
+static int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol);
+static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags);
+static inline ssize_t nlqx_sendmsg(struct nlqx_functions *xf, void *stack, int sockfd, struct nlq_msg *nlq_msg);
+static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd);
 
 /********************** SERVER SIDE ************************/
 /* RT NETLINK FAMILIES */
@@ -202,14 +215,46 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg) {
 	nlq_freemsg(nlq_msg);
 }
 
-static inline ssize_t nlq_msgsend(int fd, struct nlq_msg *nlq_msg) {
-	return send(fd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
+static int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol) {
+  if (xf && xf->msocket)
+    return xf->msocket(stack, AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+  else
+    return socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+}
+
+static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags) {
+  if (xf && xf->recv)
+    return xf->recv(stack, sockfd, buf, len, flags);
+  else
+    return recv(sockfd, buf, len, flags);
+}
+
+static inline ssize_t nlqx_sendmsg(struct nlqx_functions *xf, void *stack, int sockfd, struct nlq_msg *nlq_msg) {
+  if (xf && xf->send)
+    return xf->send(stack, sockfd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
+  else
+    return send(sockfd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
+}
+
+static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd) {
+  if (xf && xf->close)
+    return xf->close(stack, fd);
+  else
+    return close(fd);
+}
+
+static inline int nlq_open(int protocol) {
+  return nlqx_open(NULL, NULL, protocol);
+}
+
+static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg) {
+	return nlqx_sendmsg(NULL, NULL, fd, nlq_msg);
 }
 
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
 	ssize_t retval;
 	nlq_complete(nlq_msg);
-	retval = nlq_msgsend(fd, nlq_msg);
+	retval = nlq_sendmsg(fd, nlq_msg);
 	nlq_freemsg(nlq_msg);
 	return retval;
 }
