@@ -91,7 +91,8 @@ static inline int nlq_family2addrlen(int family);
 
 /********************** STACKS in USER SPACE SUPPORT  ************************/
 struct nlqx_functions {
-	int (*msocket)(void *stack, int domain, int type, int protocol);
+	int (*open)(void *stack, int domain, int type, int protocol);
+	/* open means msocket + bind */
 	ssize_t (*recv)(void *stack, int sockfd, void *buf, size_t len, int flags);
 	ssize_t (*send)(void *stack, int sockfd, const void *buf, size_t len, int flags);
 	int (*close)(void *stack, int fd);
@@ -235,11 +236,17 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg) {
 	nlq_freemsg(nlq_msg);
 }
 
-static int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol) {
-  if (xf && xf->msocket)
-    return xf->msocket(stack, AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
-  else
-    return socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+static inline int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol) {
+  if (xf && xf->open)
+    return xf->open(stack, AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+  else {
+    int fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+		if (fd >= 0) {
+			struct sockaddr_nl sanl = {AF_NETLINK, 0, 0, 0};
+			bind(fd, (struct sockaddr *) &sanl, sizeof(struct sockaddr_nl));
+		}
+		return fd;
+	}
 }
 
 static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags) {

@@ -61,7 +61,7 @@ unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const c
 #else
   struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 #endif
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM);
 #ifndef IF_NAMETOINDEX_DUMP
 	nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 #endif
@@ -86,7 +86,7 @@ char *nlqx_if_indextoname(struct nlqx_functions *xf, void *stack, unsigned int i
 	int error;
 	char *retvalue = NULL;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
-  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex);
+  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex);
 	if ((error = nlqx_rtconversation(xf, stack, msg, cb_if_indextoname, &ifindex, &retvalue, ifname)) < 0)
 		errno = (error == -ENODEV) ? ENXIO : -error;
 	return retvalue;
@@ -124,7 +124,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stac
 	if (f != NULL) {
 		int error;
 		struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST|NLM_F_DUMP, 0, 0);
-		nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM);
+		nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM);
 		error = nlqx_rtconversation(xf, stack, msg, cb_if_nameindex, NULL, f, NULL);
 		__add_if_nameindex(f, 0, NULL);
 		fclose(f);
@@ -141,7 +141,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stac
 int nlqx_linksetupdown(struct nlqx_functions *xf, void *stack, unsigned int ifindex, int updown) {
 	int ret_value;
 	struct nlq_msg *msg = nlq_createmsg(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK, 0, 0);
-  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex,
+  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex,
 			.ifi_flags=(updown) ? IFF_UP : 0, .ifi_change=IFF_UP);
 	ret_value = nlqx_rtconversation(xf,stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(ret_value);
