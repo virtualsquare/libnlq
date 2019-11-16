@@ -25,6 +25,9 @@ static inline void nlq_add(struct nlq_msg *nlq_msg, const void *data, unsigned d
 void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *nla_data, unsigned short nla_datalen);
 void nlq_complete(struct nlq_msg *nlq_msg);
 
+struct nlq_msg *nlq_createxattr(void);
+void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_msg *xattr);
+
 void nlq_enqueue(struct nlq_msg *nlq_msg, struct nlq_msg **nlq_tail);
 struct nlq_msg *nlq_head(struct nlq_msg *nlq_tail);
 struct nlq_msg *nlq_dequeue(struct nlq_msg **nlq_tail);
@@ -57,6 +60,12 @@ static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
 
 /* negative retval -> errno conversion */
 static inline int nlq_return_errno(int ret_value);
+
+/* parse sub-attributes:
+ * input: attr=the attribute using subattributes, xattr=an array of nxattr elements
+ * output: xattr[TAG] points to the sub-attribute with tag=TAG
+ */
+void nlq_parsexattr(struct nlattr *attr, struct nlattr **xattr, int nxattr);
 
 /*********** LIBC FUNCTIONS DROP IN REPLACEMENT *************/
 struct nlq_if_nameindex {

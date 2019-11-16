@@ -90,6 +90,7 @@ Netlink messages:
 * are created by `nlq_createmsg`. New messages are in composition mode: structures and attributes can be added (like coaches to a convoy).
 * data is added by `nlq_addstruct` (a more effective interface to `nlq_add`).
 * attributes can be further added by `nlq_addattr`.
+* (attr with subattrs can be added using `nlq_createxattr` and `nlq_addxattr`)
 * `nlq_complete` states that the message is complete.
 * Complete nlq messages can be enqueued and dequeued using `nlq_enqueue` and `nlq_dequeue` (`nlq_head` returns the first element of the queue, not dequeuing it and `nlq_length` returns the length of the queue)
 * Complete nlq messages can be sent on a Netlink socket using `nlq_sendmsg`.
@@ -190,6 +191,25 @@ A callback function returns:
 The `attr` parameter of the callback is an array of all the attributes defined for that type of message.
 If the attribute `X` is defined in the reply message then `attr[X]` points to it, and `(attr[X] + 1)` is the address of
 its value.
+
+Attributes with sub-attributes can be added using `nlq_createxattr` and `nlq_addxattr`. For example:
+```C
+unsigned int addlink(const char *ifname, char *type, char *data) {
+  int retvalue = 0;
+  int error;
+  struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK,  NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE, 0, 0);
+  struct nlq_msg *linkinfo = nlq_createxattr();
+  nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC);
+  nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
+  nlq_addattr(linkinfo, IFLA_INFO_KIND, type, strlen(type) + 1);
+  if (data)
+    nlq_addattr(linkinfo, IFLA_INFO_DATA, data, strlen(data) + 1);
+  nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
+  error = nlq_rtconversation(msg, nlq_process_null_cb, NULL, NULL, NULL);
+  return (error < 0) ? nlq_return_errno(error) : retvalue;
+}
+```
+This function adds a link. The attribute IFLA_LINKINFO has one or two sub-attributes: IFLA_INFO_KIND and IFLA_INFO_DATA. `linkinfo` is created by `nlq_createxattr` and can be used as a message to add the sub-attributes. When all the sub-attributes have been added `nlq_addxattr` adds the complete attribute including all the sub-attributes to the netlink message.
 
 ## Server side usage
 

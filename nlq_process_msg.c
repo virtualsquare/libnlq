@@ -243,3 +243,14 @@ int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
 	nlq_freemsg(nlq_msg);
 	return ret_value;
 }
+
+void nlq_parsexattr(struct nlattr *attr, struct nlattr **xattr, int nxattr) {
+	struct nlattr *xattrbase = attr + 1;
+	size_t xattrlen = attr->nla_len - sizeof(*attr);
+	struct nlattr *scan;
+	memset(xattr, 0, nxattr * sizeof(struct attr *));
+	for (scan = xattrbase; NLA_OK(scan, xattrlen); scan = NLA_NEXT(scan, xattrlen)) {
+		if (scan->nla_type < nxattr)
+			xattr[scan->nla_type] = scan;
+	}
+}

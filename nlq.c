@@ -118,3 +118,30 @@ void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *n
 	nlq_add(nlq_msg, &nla, sizeof(nla));
 	nlq_add(nlq_msg, nla_data, nla_datalen);
 }
+
+struct nlq_msg *nlq_createxattr(void) {
+  struct nlq_msg *nlq_msg = malloc(sizeof(struct nlq_msg));
+  if (nlq_msg != NULL) {
+    nlq_msg->nlq_packet = NULL;
+    nlq_msg->nlq_size = 0;
+    nlq_msg->nlq_file = open_memstream((char **) &nlq_msg->nlq_packet, &nlq_msg->nlq_size);
+    if (nlq_msg->nlq_file == NULL) {
+      free(nlq_msg);
+      return NULL;
+    } else
+      return nlq_msg;
+  } else
+    return NULL;
+}
+
+void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_msg *xattr) {
+	struct nlattr nla = {
+    .nla_len = sizeof(struct nlattr),
+    .nla_type = nla_type
+  };
+	fclose(xattr->nlq_file);
+	nla.nla_len += xattr->nlq_size;
+	nlq_add(nlq_msg, &nla, sizeof(nla));
+	nlq_add(nlq_msg, xattr->nlq_packet, xattr->nlq_size);
+	nlq_freemsg(xattr);
+}
