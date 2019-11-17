@@ -90,6 +90,10 @@ int nlq_ipaddr_del(int family, void *addr, int prefixlen, int ifindex);
 /* like "ip route {add,del} dst_addr/prefixlen via gw_addr" */
 int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
 int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+/* like "ip link add $ifname type $type" */
+int nlq_iplink_add(const char *ifname, const char *type, const char *data);
+/* like "ip link del $ifname" (ifname can be NULL or ifindex can be 0)*/
+int nlq_iplink_del(const char *ifname, unsigned int ifindex);
 
 /* it writes in f the same contents of /proc/net/file (retrieved by netlink) */
 int nlq_proc_net_dev(FILE *f);
@@ -129,6 +133,8 @@ int nlqx_ipaddr_add(struct nlqx_functions *xf, void *stack, int family, void *ad
 int nlqx_ipaddr_del(struct nlqx_functions *xf, void *stack, int family, void *addr, int prefixlen, int ifindex);
 int nlqx_iproute_add(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
 int nlqx_iproute_del(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, const char *type, const char *data);
+int nlqx_iplink_del(struct nlqx_functions *xf, void *stack, const char *ifname, unsigned int ifindex);
 
 int nlqx_proc_net_dev(struct nlqx_functions *xf, void *stack, FILE *f);
 
