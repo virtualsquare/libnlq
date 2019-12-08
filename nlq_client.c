@@ -61,7 +61,7 @@ unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const c
 #else
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 #endif
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC);
 #ifndef IF_NAMETOINDEX_DUMP
 	nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 #endif
@@ -86,7 +86,7 @@ char *nlqx_if_indextoname(struct nlqx_functions *xf, void *stack, unsigned int i
 	int error;
 	char *retvalue = NULL;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
 	if ((error = nlqx_rtconversation(xf, stack, msg, cb_if_indextoname, &ifindex, &retvalue, ifname)) < 0)
 		errno = (error == -ENODEV) ? ENXIO : -error;
 	return retvalue;
@@ -124,7 +124,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stac
 	if (f != NULL) {
 		int error;
 		struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST|NLM_F_DUMP, 0, 0);
-		nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM);
+		nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC);
 		error = nlqx_rtconversation(xf, stack, msg, cb_if_nameindex, NULL, f, NULL);
 		__add_if_nameindex(f, 0, NULL);
 		fclose(f);
@@ -141,7 +141,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stac
 int nlqx_linksetupdown(struct nlqx_functions *xf, void *stack, unsigned int ifindex, int updown) {
 	int ret_value;
 	struct nlq_msg *msg = nlq_createmsg(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK, 0, 0);
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex,
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex,
 			.ifi_flags=(updown) ? IFF_UP : 0, .ifi_change=IFF_UP);
 	ret_value = nlqx_rtconversation(xf,stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(ret_value);
@@ -208,11 +208,11 @@ int nlqx_iproute_del(struct nlqx_functions *xf, void *stack, int family, void *d
 	return __nlq_iproute(xf, stack, RTM_DELROUTE, 0, family, dst_addr, dst_prefixlen, gw_addr);
 }
 
-int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, const char *type, const char *data) {
+int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data) {
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK,  NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE, 0, 0);
 	struct nlq_msg *linkinfo = nlq_createxattr();
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
 	if (ifname)
 		nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 	nlq_addattr(linkinfo, IFLA_INFO_KIND, type, strlen(type) + 1);
@@ -226,7 +226,7 @@ int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, 
 int nlqx_iplink_del(struct nlqx_functions *xf, void *stack, const char *ifname, unsigned int ifindex) {
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_DELLINK, NLM_F_REQUEST | NLM_F_ACK, 0, 0);
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_type=ARPHRD_NETROM, .ifi_index=ifindex);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
 	if (ifname)
 		nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 	error = nlqx_rtconversation(xf, stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
@@ -269,8 +269,8 @@ int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr
 	return nlqx_iproute_del(NULL, NULL, family, dst_addr, dst_prefixlen, gw_addr);
 }
 
-int nlq_iplink_add(const char *ifname, const char *type, const char *data) {
-	return nlqx_iplink_add(NULL, NULL, ifname, type, data);
+int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, const char *data) {
+	return nlqx_iplink_add(NULL, NULL, ifname, ifindex, type, data);
 }
 
 int nlq_iplink_del(const char *ifname, unsigned int ifindex) {

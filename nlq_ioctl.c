@@ -51,7 +51,7 @@ static int nlq_ioctl_SIOCGIFNAME(nlq_request_handlers_table handlers_table, stru
 	int ret_value;
 	struct ifreq *ifr = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index=ifr->ifr_ifindex);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index=ifr->ifr_ifindex);
 	ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
 			cb_ioctl_SIOCGIFNAME, &ifr->ifr_ifindex, arg, NULL);
 	return nlq_return_errno(ret_value);
@@ -115,7 +115,7 @@ static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, stru
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 	char if_name[sizeof(ifr->ifr_name)];
 	copy_ifname_no_alias(if_name, ifr->ifr_name, sizeof(ifr->ifr_name));
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
 	nlq_addattr(msg, IFLA_IFNAME, if_name, strlen(if_name) + 1);
 	ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
 			cb_ioctl_SIOCGIFINFO, &request, arg, NULL);
@@ -150,15 +150,15 @@ static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, stru
 		uint32_t int32;
 		switch (request) {
 			case SIOCSIFFLAGS:
-				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index = ifindex,
+				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index = ifindex,
 						.ifi_flags = ifr->ifr_flags, .ifi_change = -1);
 				break;
 			case SIOCSIFHWADDR:
-				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index = ifindex,
+				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index = ifindex,
 						.ifi_type = ifr->ifr_hwaddr.sa_family);
 				break;
 			default:
-				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM, .ifi_index = ifindex);
+				nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index = ifindex);
 				break;
 		}
 		switch (request) {
@@ -381,7 +381,7 @@ static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, stru
 	 int index = 0;
 	 struct ifconf *ifc = arg;
 	 struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
-	 nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_type=ARPHRD_NETROM);
+	 nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
 	 ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
 			 cb_ioctl_SIOCGIFCONF, NULL, arg, &index);
 	 ifc->ifc_len = index * sizeof(struct ifreq);

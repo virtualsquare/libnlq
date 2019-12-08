@@ -209,7 +209,7 @@ unsigned int addlink(const char *ifname, char *type, char *data) {
   return (error < 0) ? nlq_return_errno(error) : retvalue;
 }
 ```
-This function adds a link. The attribute IFLA_LINKINFO has one or two sub-attributes: IFLA_INFO_KIND and IFLA_INFO_DATA. `linkinfo` is created by `nlq_createxattr` and can be used as a message to add the sub-attributes. When all the sub-attributes have been added `nlq_addxattr` adds the complete attribute including all the sub-attributes to the netlink message.
+This function adds a link. The attribute `IFLA_LINKINFO` has one or two sub-attributes: `IFLA_INFO_KIND` and `IFLA_INFO_DATA`. `linkinfo` is created by `nlq_createxattr` and can be used as a message to add the sub-attributes. When all the sub-attributes have been added `nlq_addxattr` adds the complete attribute including all the sub-attributes to the netlink message.
 
 ## Server side usage
 
