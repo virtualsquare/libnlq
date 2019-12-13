@@ -218,7 +218,7 @@ static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 				break;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 static int nlq_ioctl_SIOCGINADDR(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, unsigned long request, void *arg) {
@@ -304,7 +304,7 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 			}
 		}
 	}
-	return 1;
+	return 0;
 }
 
 static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, unsigned long request, void *arg) {

@@ -185,8 +185,7 @@ the interface name (`ifname`) and when they match it copies the interface index 
 A callback function returns:
 
 * a negative value in case of error (using the errno encoding),
-* zero in case of success,
-* one if it is a multipart message, so more packets will be delivered.
+* zero in case of success.
 
 The `attr` parameter of the callback is an array of all the attributes defined for that type of message.
 If the attribute `X` is defined in the reply message then `attr[X]` points to it, and `(attr[X] + 1)` is the address of
@@ -260,16 +259,14 @@ Given the received message `msg`, `nlq_process_rtrequest`:
 
 As a result, the implementation of the network server or library should provide the set or required callback functions to provide the support for netlink based configuration.
 
- * `search_entry` returns a `void *` pointer representing the specific link, address, route etc, in the data structures of the stack implementation. 
- * `new`. `del` and `set` must perform the required action and return zero in case of success or a negative error code in case of failure. 
- * `get` is the only callback function which needs to generate and enqueue one or more `NEW` return packets.  
-
-If any of the callbacks (but `search_entry`) returns one, the final `NLMSG_DONE` or `NLMSG_ERROR` is not enqueued.  (so `get` should return one if a single entry is required, i.e. it is not a `NLM_F_DUMP` request).
+ * `search_entry` returns a `void *` pointer representing the specific link, address, route etc, in the data structures of the stack implementation.
+ * `new`. `del` and `set` must perform the required action and return zero in case of success or a negative error code in case of failure.
+ * `get` is the only callback function which needs to generate and enqueue one or more `NEW` return packets.
 
 ```C
 static void *nl_search_link(struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
 	struct ifinfomsg *ifi = (struct ifinfomsg *)(msg + 1);
-	// argenv points to the stack private data (the last argument of nlq_process_rtrequest, mystackdata here below) 
+	// argenv points to the stack private data (the last argument of nlq_process_rtrequest, mystackdata here below)
 	// search the requested link using ifi->ifi_index and attributes like attr[IFLA_IFNAME]
 	return ret_value;
 }

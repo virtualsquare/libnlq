@@ -50,7 +50,7 @@ static int cb_if_nametoindex(struct nlmsghdr *msg, struct nlattr **attr,
 	if (attr[IFLA_IFNAME] != NULL && strcmp(ifname, (char *) (attr[IFLA_IFNAME] + 1)) == 0)
 #endif
 		*retvalue = ifinfomsg->ifi_index;
-	return msg->nlmsg_flags & NLM_F_MULTI;
+	return 0;
 }
 
 unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const char *ifname) {

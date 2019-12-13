@@ -57,6 +57,8 @@ static uint8_t family_no_attr_types[RTM_NR_FAMILIES] = {
 #define NLA_NEXT(nla,attrlen) ((attrlen) -= RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK)), \
 		(struct nlattr*)(((char*)(nla)) + RTA_ALIGN(((nla)->nla_len & NLA_TYPE_MASK))))
 
+#define EMOREMSGS EINPROGRESS
+
 /* process an rt-netlink message.
  * * netlink standard messages (NLMSG_NOOP, NLMSG_ERROR, NLMSG_DONE, NLMSG_OVERRUN)
  *   are processed and the result is returned (negative errno in case of error)
@@ -78,7 +80,7 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 				return 0;
 			case NLMSG_ERROR:
 			case NLMSG_DONE:
-				if (len >= (sizeof(*msg) + sizeof(int)) && err->error <= 0)
+				if (len >= (sizeof(*msg) + sizeof(int)))
 					return err->error;
 				else
 					return -ENODATA;
@@ -89,6 +91,7 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 		}
 	} else {
 		int family = RTM_FAM(msg->nlmsg_type);
+		int retvalue;
 		if (doit == NULL)
 			return -ENOSYS;
 		if (family < RTM_NR_FAMILIES && family_no_attr_types[family] > 0) {
@@ -101,9 +104,13 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 				if (scan->nla_type < family_no_attr_types[family])
 					attr[scan->nla_type] = scan;
 			}
-			return doit(msg, attr, argin, argout, argenv);
+			retvalue = doit(msg, attr, argin, argout, argenv);
 		} else
-			return doit(msg, NULL, argin, argout, argenv);
+			retvalue = doit(msg, NULL, argin, argout, argenv);
+		if (retvalue >= 0 && msg->nlmsg_flags & NLM_F_MULTI)
+			return -EMOREMSGS;
+		else
+			return retvalue;
 	}
 }
 
@@ -111,31 +118,35 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 	 (that could consist of several netlink messages */
 int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
-	int againerror = 1;
+	int error = 0;
 
-	while (againerror > 0) {
+	do {
 		ssize_t replylen = nlqx_recv(xf, stack, fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
-		//printf("AGAINERRor %d %d\n",againerror, replylen);
+		//printf("AGAINERRor %d %d\n",error, replylen);
 		if (replylen <= 0)
 			replylen = 16384;
 		{
 			char reply[replylen];
 			replylen = nlqx_recv(xf, stack, fd, reply, replylen, 0);
 			//printf("RL %d %p\n",replylen, reply);
-			if (replylen <= 0)
-				againerror = replylen;
+			if (replylen == 0)
+				return -ENODATA;
+			else if (replylen < 0)
+				return -errno;
 			else {
 				//dump("reply", (uint8_t *) reply, replylen, replylen);
 				struct nlmsghdr *nlmsg;
 				FORALL_NLMSG(nlmsg, reply, replylen) {
-					againerror = nlq_process_rtmsg(nlmsg, cb, argin, argout, argenv);
-					if (againerror < 0)
+					error = nlq_process_rtmsg(nlmsg, cb, argin, argout, argenv);
+					if (error == -EMOREMSGS)
+						continue;
+					if (error < 0)
 						break;
 				}
 			}
 		}
-	}
-	return againerror;
+	} while (error == -EMOREMSGS);
+	return error;
 }
 
 /* This is the entire process of a request (client side) as a single function.
@@ -213,18 +224,19 @@ static int nlq_route_rtrequest(struct nlmsghdr *msg, struct nlattr **attr,
 
 static void send_error_done(struct nlq_msg **msgq, struct nlmsghdr *inmsg, int error) {
 	struct nlq_msg *msg;
-	if (inmsg->nlmsg_flags & NLM_F_ROOT && error == 0) {
+	if (inmsg->nlmsg_flags & NLM_F_ROOT && error >= 0) {
 		msg = nlq_createmsg(NLMSG_DONE, NLM_F_MULTI, inmsg->nlmsg_seq, 0);
 		nlq_add(msg, &error, sizeof(error));
-	} else {
+		nlq_complete_enqueue(msg, msgq);
+	} else if (*msgq == NULL) {
 		msg = nlq_createmsg(NLMSG_ERROR, 0, inmsg->nlmsg_seq, 0);
 		nlq_add(msg, &error, sizeof(error));
-		if (error == 0 || (inmsg->nlmsg_flags & NETLINK_CAP_ACK))
+		if (error >= 0 || (inmsg->nlmsg_flags & NETLINK_CAP_ACK))
 			nlq_add(msg, inmsg, sizeof(struct nlmsghdr));
 		else
 			nlq_add(msg, inmsg, inmsg->nlmsg_len);
+		nlq_complete_enqueue(msg, msgq);
 	}
-	nlq_complete_enqueue(msg, msgq);
 }
 
 /* server side processing of a netlink message.
@@ -239,8 +251,7 @@ struct nlq_msg *nlq_process_rtrequest(struct nlmsghdr *msg,
 			handlers_table, &msgq, argenv);
 	if (error < 0)
 		nlq_free(&msgq);
-	if (error <= 0)
-		send_error_done(&msgq, msg, error);
+	send_error_done(&msgq, msg, error);
 	return msgq;
 }
 
@@ -249,14 +260,17 @@ struct nlq_msg *nlq_process_rtrequest(struct nlmsghdr *msg,
 	 share the same implementation bot for server and client side deployment) */
 int nlq_server_process_rtreply(struct nlq_msg *reply, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
-	int againerror = 1;
+	int error = 0;
 	while (reply != NULL) {
 		struct nlq_msg *nlq_msg = nlq_dequeue(&reply);
-		if (againerror > 0)
-			againerror = nlq_process_rtmsg(nlq_msg->nlq_packet, cb, argin, argout, argenv);
+		error = nlq_process_rtmsg(nlq_msg->nlq_packet, cb, argin, argout, argenv);
 		nlq_freemsg(nlq_msg);
+		if (error == -EMOREMSGS)
+			continue;
+		if (error < 0)
+			break;
 	}
-	return againerror;
+	return error;
 }
 
 /* this function has the same role of nlqx_rtconversation for the server side

@@ -258,13 +258,12 @@ static int nl_linkget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, s
 			nl_dump1link(newmsg, &stack->links[i]);
 			nlq_complete_enqueue(newmsg, reply_msgq);
 		}
-		return 0;
 	} else {
 		struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWLINK, 0, msg->nlmsg_seq, 0);
 		nl_dump1link(newmsg, entry);
 		nlq_complete_enqueue(newmsg, reply_msgq);
-		return 1;
 	}
+	return 0;
 }
 
 static int nl_addrget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, struct nlq_msg **reply_msgq, void *argenv) {
@@ -276,13 +275,12 @@ static int nl_addrget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, s
       nl_dump1addr(newmsg, stack, scan);
       nlq_complete_enqueue(newmsg, reply_msgq);
     }
-    return 0;
   } else {
     struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWADDR, 0, msg->nlmsg_seq, 0);
     nl_dump1addr(newmsg, stack, entry);
     nlq_complete_enqueue(newmsg, reply_msgq);
-    return 1;
   }
+	return 0;
 }
 
 static nlq_request_handlers_table fakestack_handlers_table = {
