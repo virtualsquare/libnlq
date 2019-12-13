@@ -23,6 +23,24 @@
 #include <stdint.h>
 #include <libnlq.h>
 
+/*
+ * struct nlq_msg:
+ *   nlq_packet -> it is used by open_memstrem to copose the packet.
+ *                 ts type is struct nlmsghdr * for direct access to the header fields
+ *   nlq_size -> packet's length
+ * (the following fields share the same location)
+ *   nlq_file -> (in packet composition phase)
+ *               it is a stdio stream used to compose the packet using standard fwrite.
+ *   nlq_next -> pointer to the next element (in queueing phase)
+ *               this implementation uses Circular Singly Linked Lists
+ *               (the pointer to the last element is the entry point).
+ */
+
+/* create a message (in composition mode)
+ * it adds the netlink header.
+ * nlq_add, nlq_addstruct, nlq_addattr are used to add further headers and attributes.
+ * (nlq_add, nlq_addstruct, nlq_addattr are inline functions or macros dfined in libnlq.h).
+ */
 struct nlq_msg *nlq_createmsg(uint16_t nlmsg_type, uint16_t nlmsg_flags, uint32_t nlmsg_seq, uint32_t nlmsg_pid) {
 	struct nlq_msg *nlq_msg = malloc(sizeof(struct nlq_msg));
 	if (nlq_msg != NULL) {
@@ -48,6 +66,10 @@ struct nlq_msg *nlq_createmsg(uint16_t nlmsg_type, uint16_t nlmsg_flags, uint32_
 		return NULL;
 }
 
+/* the packet is complete: change from composition mode to queueing mode.
+ * when nlq_file gets closed it fills in nlq_packet and nlq_size
+ * (it is a feature of open_memstream)
+ */
 void nlq_complete(struct nlq_msg *nlq_msg) {
 	fclose(nlq_msg->nlq_file);
 	if (nlq_msg->nlq_size >= sizeof(struct nlmsghdr))
@@ -55,11 +77,13 @@ void nlq_complete(struct nlq_msg *nlq_msg) {
 	nlq_msg->nlq_next = NULL;
 }
 
+/* deallocate *one* packet */
 void nlq_freemsg(struct nlq_msg *nlq_msg) {
 	free(nlq_msg->nlq_packet);
 	free(nlq_msg);
 }
 
+/* standard queue management functions */
 void nlq_enqueue(struct nlq_msg *nlq_msg, struct nlq_msg **nlq_tail) {
 	if (nlq_msg->nlq_next == NULL)
 		nlq_msg->nlq_next = nlq_msg;
@@ -105,11 +129,13 @@ int nlq_length(struct nlq_msg *nlq_tail) {
 	}
 }
 
+/* deallocate an entire queue of nlq messages */
 void nlq_free (struct nlq_msg **nlq_tail) {
 	while (*nlq_tail != NULL)
 		nlq_freemsg(nlq_dequeue(nlq_tail));
 }
 
+/* add an attribute (struct nlattr) */
 void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *nla_data, unsigned short nla_datalen) {
 	struct nlattr nla = {
 		.nla_len = sizeof(struct nlattr) + nla_datalen,
@@ -119,6 +145,10 @@ void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *n
 	nlq_add(nlq_msg, nla_data, nla_datalen);
 }
 
+/* create a nlq_msg without header to create an attribute containing sub-attributes
+ * (extended attribute = xattr)
+ * sub-attributes can be added using nlq_addaddr here above
+ */
 struct nlq_msg *nlq_createxattr(void) {
   struct nlq_msg *nlq_msg = malloc(sizeof(struct nlq_msg));
   if (nlq_msg != NULL) {
@@ -134,6 +164,7 @@ struct nlq_msg *nlq_createxattr(void) {
     return NULL;
 }
 
+/* complete the xattr and add it as an attribute to a nlq message */
 void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_msg *xattr) {
 	struct nlattr nla = {
     .nla_len = sizeof(struct nlattr),

@@ -31,10 +31,10 @@
 #include <libnlq.h>
 
 static inline void copy_ifname_no_alias(char *dst, char *src, int len) {
-  char *colon;
-  snprintf(dst, len, "%s", src);
-  if ((colon = strchr(dst, ':')) != NULL)
-    *colon = '\0';
+	char *colon;
+	snprintf(dst, len, "%s", src);
+	if ((colon = strchr(dst, ':')) != NULL)
+		*colon = '\0';
 }
 
 static int cb_ioctl_SIOCGIFNAME(struct nlmsghdr *msg, struct nlattr **attr,
@@ -104,7 +104,7 @@ static int cb_ioctl_SIOCGIFINFO(struct nlmsghdr *msg, struct nlattr **attr,
 				ifr->ifr_map = ifmap;
 			} else
 				return -EADDRNOTAVAIL;
-      break;
+			break;
 	}
 	return 0;
 }
@@ -142,7 +142,7 @@ static inline int hwaddrlen(int arphrd_type) {
 }
 
 static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, unsigned long request, void *arg) {
-  struct ifreq *ifr = arg;
+	struct ifreq *ifr = arg;
 	int ifindex = _nlq_SIOCGIFINDEX(handlers_table, xf, stackinfo, ifr->ifr_name);
 	if (ifindex > 0) {
 		struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK, NLM_F_REQUEST|NLM_F_ACK, 0, 0);
@@ -182,10 +182,10 @@ static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, stru
 }
 
 static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
-    const void *argin, void *argout, void *argenv) {
-  const long *request = argin;
-  struct ifaddrmsg *ifaddrmsg = (struct ifaddrmsg *) (msg + 1);
-  struct ifreq *ifr = argout;
+		const void *argin, void *argout, void *argenv) {
+	const long *request = argin;
+	struct ifaddrmsg *ifaddrmsg = (struct ifaddrmsg *) (msg + 1);
+	struct ifreq *ifr = argout;
 	struct sockaddr_in *addr_in = (struct sockaddr_in *) &(ifr->ifr_addr);
 	if (addr_in->sin_family == 0 && attr[IFA_LOCAL] != NULL &&
 			attr[IFA_LABEL] != NULL && strncmp((char *)(attr[IFA_LABEL]+1), ifr->ifr_name, sizeof(ifr->ifr_name)) == 0) {
@@ -201,13 +201,13 @@ static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 			case SIOCGIFDSTADDR:
 				if (attr[IFA_ADDRESS] != NULL)
 					memcpy(&addr_in->sin_addr, attr[IFA_ADDRESS] + 1, sizeof(addr_in->sin_addr));
-        else
-          return -EADDRNOTAVAIL;
+				else
+					return -EADDRNOTAVAIL;
 				break;
 			case SIOCGIFBRDADDR:
 				if (attr[IFA_BROADCAST] != NULL)
-          memcpy(&addr_in->sin_addr, attr[IFA_BROADCAST] + 1, sizeof(addr_in->sin_addr));
-        else
+					memcpy(&addr_in->sin_addr, attr[IFA_BROADCAST] + 1, sizeof(addr_in->sin_addr));
+				else
 					addr_in->sin_addr.s_addr = htonl(0);
 				break;
 			case SIOCGIFNETMASK:
@@ -222,13 +222,13 @@ static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 }
 
 static int nlq_ioctl_SIOCGINADDR(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, unsigned long request, void *arg) {
-  int ret_value;
+	int ret_value;
 	struct ifreq *ifr = arg;
-  struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
-  nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
+	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
+	nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
 	ifr->ifr_addr.sa_family = 0;
-  ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
-      cb_ioctl_SIOCGINADDR, &request, arg, NULL);
+	ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
+			cb_ioctl_SIOCGINADDR, &request, arg, NULL);
 	if (ifr->ifr_addr.sa_family == 0)
 		return errno = EADDRNOTAVAIL, -1;
 	else
@@ -258,14 +258,14 @@ int addr2prefix(uint32_t addr) {
 }
 
 static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
-    const void *argin, void *argout, void *argenv) {
-  const long *request = argin;
-  struct ifaddrmsg *ifaddrmsg = (struct ifaddrmsg *) (msg + 1);
-  struct ifreq *ifr = argout;
+		const void *argin, void *argout, void *argenv) {
+	const long *request = argin;
+	struct ifaddrmsg *ifaddrmsg = (struct ifaddrmsg *) (msg + 1);
+	struct ifreq *ifr = argout;
 	struct SIOCSINADDR_msgs *msgs = argenv;
-  struct sockaddr_in *addr_in = (struct sockaddr_in *) &(ifr->ifr_addr);
+	struct sockaddr_in *addr_in = (struct sockaddr_in *) &(ifr->ifr_addr);
 	if (msgs->del_msg == NULL && attr[IFA_LOCAL] != NULL && attr[IFA_ADDRESS] != NULL &&
-      attr[IFA_LABEL] != NULL && strncmp((char *)(attr[IFA_LABEL]+1), ifr->ifr_name, sizeof(ifr->ifr_name)) == 0) {
+			attr[IFA_LABEL] != NULL && strncmp((char *)(attr[IFA_LABEL]+1), ifr->ifr_name, sizeof(ifr->ifr_name)) == 0) {
 		int ifa_attr;
 		uint8_t newattr[IFA_MAX + 1] = {};
 		msgs->del_msg = nlq_createmsg(RTM_DELADDR, NLM_F_REQUEST|NLM_F_ACK, 0, 0);
@@ -327,8 +327,8 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, stru
 				if (request == SIOCSIFADDR && ntohl(addr_in->sin_addr.s_addr) != 0) {
 					msgs.new_msg = nlq_createmsg(RTM_NEWADDR, NLM_F_REQUEST|NLM_F_ACK|NLM_F_EXCL|NLM_F_CREATE, 0, 0);
 					nlq_addstruct(msgs.new_msg, ifaddrmsg, .ifa_family=AF_INET,
-          .ifa_prefixlen = addr2prefix(ntohl(addr_in->sin_addr.s_addr)),
-          .ifa_index = ifindex);
+							.ifa_prefixlen = addr2prefix(ntohl(addr_in->sin_addr.s_addr)),
+							.ifa_index = ifindex);
 					nlq_addattr(msgs.new_msg, IFA_LOCAL, &addr_in->sin_addr, sizeof(addr_in->sin_addr));
 					nlq_addattr(msgs.new_msg, IFA_ADDRESS, &addr_in->sin_addr, sizeof(addr_in->sin_addr));
 					nlq_addattr(msgs.new_msg, IFA_LABEL, ifr->ifr_name, strlen(ifr->ifr_name) + 1);
@@ -345,7 +345,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, stru
 			}
 			if (msgs.new_msg != NULL) {
 				ret_value = nlq_general_rtconversation(msgs.new_msg, handlers_table, xf, stackinfo,
-            nlq_process_null_cb, NULL, NULL, NULL);
+						nlq_process_null_cb, NULL, NULL, NULL);
 				return nlq_return_errno(ret_value);
 			} else
 				return 0;
@@ -355,7 +355,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, stru
 }
 
 static int cb_ioctl_SIOCGIFCONF(struct nlmsghdr *msg, struct nlattr **attr,
-    const void *argin, void *argout, void *argenv) {
+		const void *argin, void *argout, void *argenv) {
 	struct ifconf *ifc = argout;
 	int *index = argenv;
 	if (attr[IFA_LOCAL] != NULL && attr[IFA_LABEL] != NULL) {
@@ -377,24 +377,27 @@ static int cb_ioctl_SIOCGIFCONF(struct nlmsghdr *msg, struct nlattr **attr,
 }
 
 static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, void *arg) {
-	 int ret_value;
-	 int index = 0;
-	 struct ifconf *ifc = arg;
-	 struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
-	 nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
-	 ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
-			 cb_ioctl_SIOCGIFCONF, NULL, arg, &index);
-	 ifc->ifc_len = index * sizeof(struct ifreq);
-	 return nlq_return_errno(ret_value);
+	int ret_value;
+	int index = 0;
+	struct ifconf *ifc = arg;
+	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
+	ret_value = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo,
+			cb_ioctl_SIOCGIFCONF, NULL, arg, &index);
+	ifc->ifc_len = index * sizeof(struct ifreq);
+	return nlq_return_errno(ret_value);
 }
 
+/* commmon code of ioctl implementation. It can be used client side or server side */
 static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf,
 		void *stackinfo, unsigned long request, void *arg) {
 	struct ifreq *ifr = arg;
 	//printf("%lx\n", request);
 	switch (request) {
+		/* return ifr_name given ifr_ifindex */
 		case SIOCGIFNAME:
 			return nlq_ioctl_SIOCGIFNAME(handlers_table, xf, stackinfo, arg);
+			/* get interface info */
 		case SIOCGIFINDEX:
 		case SIOCGIFFLAGS:
 		case SIOCGIFMTU:
@@ -402,24 +405,29 @@ static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct nl
 		case SIOCGIFHWADDR:
 		case SIOCGIFMAP:
 			return nlq_ioctl_SIOCGIFINFO(handlers_table, xf, stackinfo, request, arg);
+			/* set interface info */
 		case SIOCSIFFLAGS:
-    case SIOCSIFMTU:
-    case SIOCSIFTXQLEN:
-    case SIOCSIFHWADDR:
+		case SIOCSIFMTU:
+		case SIOCSIFTXQLEN:
+		case SIOCSIFHWADDR:
 			return nlq_ioctl_SIOCSIFINFO(handlers_table, xf, stackinfo, request, arg);
+			/* get IP address info */
 		case SIOCGIFADDR:
 		case SIOCGIFDSTADDR:
 		case SIOCGIFBRDADDR:
 		case SIOCGIFNETMASK:
 			return nlq_ioctl_SIOCGINADDR(handlers_table, xf, stackinfo, request, arg);
+			/* set IP address info */
 		case SIOCSIFADDR:
-    case SIOCSIFDSTADDR:
-    case SIOCSIFBRDADDR:
-    case SIOCSIFNETMASK:
-      return nlq_ioctl_SIOCSINADDR(handlers_table, xf, stackinfo, request, arg);
+		case SIOCSIFDSTADDR:
+		case SIOCSIFBRDADDR:
+		case SIOCSIFNETMASK:
+			return nlq_ioctl_SIOCSINADDR(handlers_table, xf, stackinfo, request, arg);
+			/* linux compatibility: it sets ifr_metric to 0 if you attempt to read it */
 		case SIOCGIFMETRIC:
 			ifr->ifr_metric = 0;
 			return 0;
+			/* Return a list of interface addresses */
 		case SIOCGIFCONF:
 			return nlq_ioctl_SIOCGIFCONF(handlers_table, xf, stackinfo, arg);
 	}
@@ -427,14 +435,17 @@ static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct nl
 	return -1;
 }
 
+/* client side ioctl, multi stack */
 int nlqx_ioctl(struct nlqx_functions *xf, void *stack, unsigned long request, void *arg) {
 	return nlq_common_ioctl(NULL, xf, stack, request, arg);
 }
 
+/* client side ioctl, no fd, default stack */
 int nlq_ioctl_nofd(unsigned long request, void *arg) {
 	return nlq_common_ioctl(NULL, NULL, NULL, request, arg);
 }
 
+/* client side ioctl, default stack, glibc comaptible */
 int nlq_ioctl(int fd, unsigned long request, void *arg) {
 	struct stat buf;
 	if (fstat(fd, &buf) < 0)
@@ -446,6 +457,7 @@ int nlq_ioctl(int fd, unsigned long request, void *arg) {
 	return nlq_common_ioctl(NULL, NULL, NULL, request, arg);
 }
 
+/* server side ioctl */
 int nlq_server_ioctl(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
 	return nlq_common_ioctl(handlers_table, NULL, stackinfo, request, arg);
 }

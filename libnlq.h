@@ -323,11 +323,6 @@ static inline int nlq_return_errno(int ret_value) {
     return ret_value;
 }
 
-int nlq_process_rtmsg(struct nlmsghdr *msg,
-    nlq_doit_f doit,
-		const void *argin, void *argout, void *argenv);
-#define nlq_process_rtreply nlq_process_rtmsg
-
 static inline int nlq_family2addrlen(int family) {
 	switch (family) {
 		case AF_INET: return sizeof(struct in_addr);
