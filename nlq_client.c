@@ -212,10 +212,13 @@ int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, 
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK,  NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE, 0, 0);
 	struct nlq_msg *linkinfo = nlq_createxattr();
-	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
+	uint32_t ifi_index = ifindex == -1 ? 0 : ifindex;
+	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifi_index);
 	if (ifname)
 		nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 	nlq_addattr(linkinfo, IFLA_INFO_KIND, type, strlen(type) + 1);
+	if (ifindex != ifi_index)
+		nlq_addattr(msg, IFLA_NEW_IFINDEX, &ifi_index, sizeof(ifi_index));
 	if (data)
 		nlq_addattr(linkinfo, IFLA_INFO_DATA, data, strlen(data) + 1);
 	nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
