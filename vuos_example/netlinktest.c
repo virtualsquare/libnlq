@@ -81,7 +81,7 @@ static void dump(const char *title, const uint8_t *data, size_t bufsize, ssize_t
 	ssize_t line, i;
 	/* out format:
 		 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-		 01234567890123456789012345678901234567890123456789012345678901234 
+		 01234567890123456789012345678901234567890123456789012345678901234
 		 */
 	char hexbuf[48];
 	char charbuf[17];
@@ -105,21 +105,22 @@ static void dump(const char *title, const uint8_t *data, size_t bufsize, ssize_t
 }
 #endif
 
+#define NOFLINKS 8
+
 /* fake stack... this code manages some (non-existent) interface and their addresses...
 	 if is a dummmy stub to show how real stack can be interfaced to libnlq */
 struct fake_if {
 	char *name;
 	uint16_t index;
 	uint16_t type;
-	uint8_t *hwaddr;
-	uint8_t *brd;
 	uint32_t flags;
 	uint32_t mtu;
+	uint8_t hwaddr[6];
+	uint8_t brd[6];
 };
 
-struct fake_if fake_links[] = {
-	{"lo", 1, ARPHRD_LOOPBACK, "\0\0\0\0\0\0", "\0\0\0\0\0\0", IFF_LOOPBACK, 65536},
-	{"vde0", 2, ARPHRD_ETHER, "\x80\0\0\0\0\x42", "\xff\xff\xff\xff\xff\xff", IFF_BROADCAST|IFF_MULTICAST, 1500}
+struct fake_if fake_links[NOFLINKS] = {
+	{"lo", 1, ARPHRD_LOOPBACK, IFF_LOOPBACK, 65536},
 };
 
 struct fake_addr {
@@ -134,7 +135,9 @@ struct fake_addr {
 struct fake_route {
 	struct fake_route *next;
 	int family;
-	int index;
+	uint32_t index;
+	int dst_len;
+	int src_len;
 	uint8_t *dstaddr;
 	uint8_t *gwaddr;
 };
@@ -157,16 +160,32 @@ static void nl_dump1link(struct nlq_msg *msg, struct fake_if *link) {
 	nlq_addattr(msg, IFLA_TXQLEN, &zero, 4);
 }
 
-static void nl_dump1addr(struct nlq_msg *msg, struct fake_stack *stack, struct fake_addr *addr) {
-	nlq_addstruct(msg, ifaddrmsg, 
-			.ifa_family=addr->family, 
-			.ifa_prefixlen=addr->prefix, 
-			.ifa_scope=RT_SCOPE_UNIVERSE, 
+static void nl_dump1addr(struct nlq_msg *msg, struct fake_addr *addr) {
+	nlq_addstruct(msg, ifaddrmsg,
+			.ifa_family=addr->family,
+			.ifa_prefixlen=addr->prefix,
+			.ifa_scope=RT_SCOPE_UNIVERSE,
 			.ifa_index=addr->index);
 	nlq_addattr(msg, IFA_LOCAL, addr->addr, nlq_family2addrlen(addr->family));
 	nlq_addattr(msg, IFA_ADDRESS, addr->addr, nlq_family2addrlen(addr->family));
 	if (addr->label)
 		nlq_addattr(msg, IFA_LABEL, addr->label, strlen(addr->label) + 1);
+}
+
+static void nl_dump1route(struct nlq_msg *msg, struct fake_route *route) {
+	nlq_addstruct(msg, rtmsg,
+			.rtm_family = route->family,
+			.rtm_table = RT_TABLE_MAIN,
+			.rtm_protocol=RTPROT_BOOT,
+			.rtm_scope=RT_SCOPE_UNIVERSE,
+			.rtm_type=RTN_UNICAST,
+			.rtm_dst_len = route->dst_len,
+			.rtm_src_len = route->src_len);
+	if (route->dstaddr)
+		nlq_addattr(msg, RTA_DST, route->dstaddr, nlq_family2addrlen(route->family));
+	nlq_addattr(msg, RTA_GATEWAY, route->gwaddr, nlq_family2addrlen(route->family));
+	if (route->index  > 0)
+		nlq_addattr(msg, RTA_OIF, &route->index, sizeof(route->index));
 }
 
 /* libnlq callbacks */
@@ -175,12 +194,61 @@ static void *nl_search_link(struct nlmsghdr *msg, struct nlattr **attr, void *ar
 	struct fake_stack *stack = argenv;
 	int i;
 	for (i = 0; i < stack->nolinks; i++) {
-		if (ifi->ifi_index == stack->links[i].index)
-			return &stack->links[i];
-		if (attr[IFLA_IFNAME] != NULL && strcmp(stack->links[i].name, (char *) (attr[IFLA_IFNAME] + 1)) == 0)
-			return &stack->links[i];
+		if (stack->links[i].name) {
+			if (ifi->ifi_index == stack->links[i].index)
+				return &stack->links[i];
+			if (attr[IFLA_IFNAME] != NULL && strcmp(stack->links[i].name, (char *) (attr[IFLA_IFNAME] + 1)) == 0)
+				return &stack->links[i];
+		}
 	}
 	return NULL;
+}
+
+static int nl_linkcreate(struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
+	struct fake_stack *stack = argenv;
+	struct ifinfomsg *ifi = (struct ifinfomsg *)(msg + 1);
+	int index = ifi->ifi_index;
+	if (index == 0) {
+		for (index = 1; index < stack->nolinks; index++) {
+			if (stack->links[index].name == NULL)
+				break;
+		}
+		if (index == stack->nolinks)
+			return -ENOMEM;
+	} else {
+		index--;
+		if (index < 0 || index >= stack->nolinks)
+			return -ENOENT;
+		if (stack->links[index].name != NULL)
+			return -EEXIST;
+	};
+	stack->links[index].index = index + 1;
+	if (attr[IFLA_IFNAME] != NULL && attr[IFLA_IFNAME]->nla_len > 0)
+		stack->links[index].name = strndup((char *) (attr[IFLA_IFNAME] + 1), attr[IFLA_IFNAME]->nla_len);
+	else
+		asprintf(&stack->links[index].name, "vde%d", index);
+	stack->links[index].type = ARPHRD_ETHER;
+	stack->links[index].flags = IFF_BROADCAST | IFF_MULTICAST;
+	stack->links[index].mtu = 1500;
+	stack->links[index].hwaddr[0] = 0x80;
+	stack->links[index].hwaddr[5] = 0x40+index;
+	memcpy(stack->links[index].brd, "\xff\xff\xff\xff\xff\xff", 6);
+	if (attr[IFLA_NEW_IFINDEX] != NULL &&
+			attr[IFLA_NEW_IFINDEX]->nla_len == sizeof(struct nlattr) + sizeof(uint32_t) &&
+			*((uint32_t *)(attr[IFLA_NEW_IFINDEX] + 1)) == 0)
+		return stack->links[index].index;
+	else
+		return 0;
+}
+
+static int nl_linkdel(void *item, struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
+	struct fake_if *link = item;
+	char *name = link->name;
+	if (link->index == 1)
+		return -ENOTSUP;
+	link->name = NULL;
+	free(name);
+	return 0;
 }
 
 static int nl_linkset(void *entry, struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
@@ -198,10 +266,10 @@ static void *nl_search_addr(struct nlmsghdr *msg, struct nlattr **attr, void *ar
 	struct fake_addr *scan;
 	struct ifaddrmsg *ifa = (struct ifaddrmsg *)(msg + 1);
 	for (scan = stack->head_addr; scan != NULL; scan = scan->next) {
-		if (ifa->ifa_family == scan->family && 
+		if (ifa->ifa_family == scan->family &&
 				ifa->ifa_prefixlen == scan->prefix &&
 				ifa->ifa_index == scan->index &&
-				attr[IFA_ADDRESS] != NULL && 
+				attr[IFA_ADDRESS] != NULL &&
 				memcmp(scan->addr, attr[IFA_ADDRESS]+1, nlq_family2addrlen(scan->family)) == 0)
 			return scan;
 	}
@@ -249,14 +317,83 @@ static int nl_addrdel(void *item, struct nlmsghdr *msg, struct nlattr **attr, vo
   return -ENOENT;
 }
 
+static void *nl_search_route(struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
+	struct fake_stack *stack = argenv;
+  struct fake_route *scan;
+	struct rtmsg *rtm = (struct rtmsg *) (msg + 1);
+  for (scan = stack->head_route; scan != NULL; scan = scan->next) {
+    if (rtm->rtm_family == scan->family &&
+        rtm->rtm_dst_len == scan->dst_len &&
+        rtm->rtm_src_len == scan->src_len &&
+				((attr[RTA_DST] == NULL && scan->dstaddr ==NULL) ||
+				 (attr[RTA_DST] != NULL && scan->dstaddr !=NULL &&
+					memcmp(scan->dstaddr, attr[RTA_DST]+1, nlq_family2addrlen(scan->family)) == 0)) &&
+        attr[RTA_GATEWAY] != NULL &&
+        memcmp(scan->gwaddr, attr[RTA_GATEWAY]+1, nlq_family2addrlen(scan->family)) == 0 &&
+				(attr[RTA_OIF] == NULL ||
+				scan->index == *((uint32_t *)(attr[RTA_OIF] + 1))) &&
+				1)
+      return scan;
+  }
+  return NULL;
+}
+
+static int nl_routecreate(struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
+  struct fake_stack *stack = argenv;
+  struct rtmsg *rtm = (struct rtmsg *)(msg + 1);
+	if (attr[RTA_GATEWAY] == NULL || attr[RTA_GATEWAY]->nla_len - sizeof(struct nlattr) != nlq_family2addrlen(rtm->rtm_family))
+    return -EINVAL;
+	if (attr[RTA_DST] != NULL && attr[RTA_DST]->nla_len - sizeof(struct nlattr) != nlq_family2addrlen(rtm->rtm_family))
+    return -EINVAL;
+	struct fake_route *new = malloc(sizeof(struct fake_route));
+	  new->next = NULL;
+  new->family = rtm->rtm_family;
+  new->dst_len = rtm->rtm_dst_len;
+  new->src_len = rtm->rtm_src_len;
+  new->index = 0;
+	if (attr[RTA_DST] != NULL) {
+		new->dstaddr = malloc(nlq_family2addrlen(new->family));
+		memcpy(new->dstaddr, attr[RTA_DST]+1, nlq_family2addrlen(new->family));
+	} else
+		new->dstaddr = NULL;
+	new->gwaddr = malloc(nlq_family2addrlen(new->family));
+  memcpy(new->gwaddr, attr[RTA_GATEWAY]+1, nlq_family2addrlen(new->family));
+	if (attr[RTA_OIF] != NULL && attr[RTA_OIF]->nla_len - sizeof(struct nlattr) == sizeof(new->index))
+		new->index = *((uint32_t *)(attr[RTA_OIF] + 1));
+	struct fake_route **scan;
+  for (scan = &stack->head_route; *scan != NULL; scan = &((*scan)->next))
+    ;
+  *scan = new;
+	return 0;
+}
+
+static int nl_routedel(void *item, struct nlmsghdr *msg, struct nlattr **attr, void *argenv) {
+  struct fake_route *route = item;
+  struct fake_stack *stack = argenv;
+  struct fake_route **scan;
+  for (scan = &stack->head_route; *scan != NULL; scan = &((*scan)->next)) {
+    if (*scan == route) {
+      *scan = route->next;
+			if (route->dstaddr)
+				free(route->dstaddr);
+      free(route->gwaddr);
+      free(route);
+      return 0;
+    }
+  }
+  return -ENOENT;
+}
+
 static int nl_linkget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, struct nlq_msg **reply_msgq, void *argenv) {
 	struct fake_stack *stack = argenv;
 	if (entry == NULL) { // DUMP
 		int i;
 		for (i = 0; i < stack->nolinks; i++) {
-			struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWLINK, NLM_F_MULTI, msg->nlmsg_seq, 0);
-			nl_dump1link(newmsg, &stack->links[i]);
-			nlq_complete_enqueue(newmsg, reply_msgq);
+			if (stack->links[i].name) {
+				struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWLINK, NLM_F_MULTI, msg->nlmsg_seq, 0);
+				nl_dump1link(newmsg, &stack->links[i]);
+				nlq_complete_enqueue(newmsg, reply_msgq);
+			}
 		}
 	} else {
 		struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWLINK, 0, msg->nlmsg_seq, 0);
@@ -272,20 +409,38 @@ static int nl_addrget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, s
 		struct fake_addr *scan;
 		for (scan = stack->head_addr; scan != NULL; scan = scan->next) {
       struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWADDR, NLM_F_MULTI, msg->nlmsg_seq, 0);
-      nl_dump1addr(newmsg, stack, scan);
+      nl_dump1addr(newmsg, scan);
       nlq_complete_enqueue(newmsg, reply_msgq);
     }
   } else {
     struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWADDR, 0, msg->nlmsg_seq, 0);
-    nl_dump1addr(newmsg, stack, entry);
+    nl_dump1addr(newmsg, entry);
     nlq_complete_enqueue(newmsg, reply_msgq);
   }
 	return 0;
 }
 
+static int nl_routeget(void *entry, struct nlmsghdr *msg, struct nlattr **attr, struct nlq_msg **reply_msgq, void *argenv) {
+	struct fake_stack *stack = argenv;
+	if (entry == NULL) { // DUMP
+		struct fake_route *scan;
+		for (scan = stack->head_route; scan != NULL; scan = scan->next) {
+			struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWROUTE, NLM_F_MULTI, msg->nlmsg_seq, 0);
+			nl_dump1route(newmsg, scan);
+			nlq_complete_enqueue(newmsg, reply_msgq);
+		}
+	} else {
+		struct nlq_msg *newmsg = nlq_createmsg(RTM_NEWROUTE, 0, msg->nlmsg_seq, 0);
+		nl_dump1route(newmsg, entry);
+		nlq_complete_enqueue(newmsg, reply_msgq);
+	}
+	return 0;
+}
+
 static nlq_request_handlers_table fakestack_handlers_table = {
-	[RTMF_LINK]={nl_search_link, nl_linkget, NULL, NULL, nl_linkset},
-	[RTMF_ADDR]={nl_search_addr, nl_addrget, nl_addrcreate, nl_addrdel}
+	[RTMF_LINK]={nl_search_link, nl_linkget, nl_linkcreate, nl_linkdel, nl_linkset},
+	[RTMF_ADDR]={nl_search_addr, nl_addrget, nl_addrcreate, nl_addrdel},
+	[RTMF_ROUTE]={nl_search_route, nl_routeget, nl_routecreate, nl_routedel}
 };
 
 /* umvu virtualization of netlink... */
@@ -484,7 +639,7 @@ int vu_netlinktest_ioctl(int sockfd, unsigned long request, void *buf, uintptr_t
 
 static int checkioctl(uint8_t type, void *arg, int arglen,
     struct vuht_entry_t *ht) {
-  unsigned long *request = arg; 
+  unsigned long *request = arg;
 	switch (*request) {
 		case SIOCGIFCONF:
 		case SIOCGIFNAME:
