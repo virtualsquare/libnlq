@@ -102,6 +102,10 @@ int nlq_proc_net_dev(FILE *f);
 	 AF_INET->4, AF_INET6->16, 0 otherwise */
 static inline int nlq_family2addrlen(int family);
 
+/* prefix -> mask and viceversa */
+void nlq_prefix2mask(int family, void *mask, int prefixlen);
+int nlq_mask2prefix(int family, const void *mask);
+
 /********************** STACKS in USER SPACE SUPPORT  ************************/
 struct nlqx_functions {
 	int (*open)(void *stack, int domain, int type, int protocol);

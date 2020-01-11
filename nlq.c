@@ -176,3 +176,33 @@ void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_m
 	nlq_add(nlq_msg, xattr->nlq_packet, xattr->nlq_size);
 	nlq_freemsg(xattr);
 }
+
+/* utility to convert prefix 2 mask and viceversa */
+void nlq_prefix2mask (int family, void *mask, int prefixlen) {
+  int addrlen = nlq_family2addrlen(family);
+  unsigned char *byte = mask;
+  static unsigned char ptab[] = {0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe};
+  for (; addrlen > 0; byte++, prefixlen -= 8, addrlen--) {
+    if (prefixlen >= 8)
+      *byte = 0xff;
+    else
+      *byte = ptab[prefixlen < 0 ? 0 : prefixlen];
+  }
+}
+
+int nlq_mask2prefix(int family, const void *mask) {
+  int addrlen = nlq_family2addrlen(family);
+  const unsigned char *byte = mask;
+  int retvalue;
+  for(retvalue = 0; addrlen > 0; byte++, addrlen--) {
+    if (*byte & 0x01) {retvalue += 8; continue;}
+    if (*byte & 0x02) {retvalue += 7; continue;}
+    if (*byte & 0x04) {retvalue += 6; continue;}
+    if (*byte & 0x08) {retvalue += 5; continue;}
+    if (*byte & 0x10) {retvalue += 4; continue;}
+    if (*byte & 0x20) {retvalue += 3; continue;}
+    if (*byte & 0x40) {retvalue += 2; continue;}
+    if (*byte & 0x80) {retvalue += 1; continue;}
+  }
+  return retvalue;
+}
