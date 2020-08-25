@@ -8,7 +8,7 @@ Libnlq is a library:
 * giving a simple interface to configure ip addresses and routing
 * providing a quick way to set up netlink requests and parse the replies
 * which can be used in user-space network stack implementations to support configuration via netlink
-* which includes 'drop-in' replacement functions to glibc function already using obsolete netdevice (like *if_nametoindex* or *if_indextoname*)
+* which includes 'drop-in' replacement functions to glibc function still using obsolete netdevice (like *if_nametoindex* or *if_indextoname*)
 * able to convert many (the most important) `ioctl` operations defined by netdevice to netlink based calls (this feature can be used both at client and stack side)
 
 Netlink protocol family has many applications. This library has been designed for the `NETLINK_ROUTE` protocol (although many functions can be used on other protocols).
@@ -155,7 +155,7 @@ static int cb_dump_n2i(struct nlmsghdr *msg, struct nlattr **attr,
   int *retvalue = argout;
   if (attr[IFLA_IFNAME] != NULL && strcmp(ifname, (char *) (attr[IFLA_IFNAME] + 1)) == 0)
     *retvalue = ifinfomsg->ifi_index;
-  return 1;
+  return 0;
 }
 
 unsigned int dump_n2i(const char *ifname) {

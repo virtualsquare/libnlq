@@ -373,7 +373,7 @@ static int cb_ioctl_SIOCGIFCONF(struct nlmsghdr *msg, struct nlattr **attr,
 			}
 		}
 	}
-	return 1;
+	return 0;
 }
 
 static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo, void *arg) {
