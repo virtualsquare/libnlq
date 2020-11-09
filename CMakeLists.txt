@@ -19,3 +19,5 @@ set_target_properties(nlq PROPERTIES VERSION ${PROJECT_VERSION}
 install(TARGETS nlq LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES libnlq.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+add_custom_target(uninstall
+  "${CMAKE_COMMAND}" -P "${PROJECT_SOURCE_DIR}/Uninstall.cmake")
