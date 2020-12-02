@@ -116,18 +116,18 @@ int nlq_process_rtmsg(struct nlmsghdr *msg,
 
 /* This function it is used at client side to reveive and process the reply
 	 (that could consist of several netlink messages */
-int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb,
+int nlq_recv_process_rtreply(int fd, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
 	int error = 0;
 
 	do {
-		ssize_t replylen = nlqx_recv(xf, stack, fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
+		ssize_t replylen = ioth_recv(fd, NULL, 0, MSG_PEEK|MSG_TRUNC);
 		//printf("AGAINERRor %d %d\n",error, replylen);
 		if (replylen <= 0)
 			replylen = 16384;
 		{
 			char reply[replylen];
-			replylen = nlqx_recv(xf, stack, fd, reply, replylen, 0);
+			replylen = ioth_recv(fd, reply, replylen, 0);
 			//printf("RL %d %p\n",replylen, reply);
 			if (replylen == 0)
 				return -ENODATA;
@@ -153,15 +153,15 @@ int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nl
  * rtconversation has benn designed to automatize the whole process:
  * the typical sequence of actions is: nlq_createmsg, nlq_addstruct/addattr, nlqx_rtconversation
  */
-int nlqx_rtconversation(struct nlqx_functions *xf, void *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
+int nlqx_rtconversation(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
-	int fd = nlqx_open(xf, stack, NETLINK_ROUTE);
+	int fd = nlqx_open(stack, NETLINK_ROUTE);
 	int error;
 	if (fd < 0)
 		return -EPROTONOSUPPORT;
-	nlqx_complete_send_freemsg(xf, stack, fd, nlq_msg);
-	error = nlqx_recv_process_rtreply(xf, stack, fd, cb, argin, argout, argenv);
-	nlqx_close(xf, stack, fd);
+	nlq_complete_send_freemsg(fd, nlq_msg);
+	error = nlq_recv_process_rtreply(fd, cb, argin, argout, argenv);
+	ioth_close(fd);
 	return error;
 }
 

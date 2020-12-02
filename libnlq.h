@@ -12,32 +12,49 @@
 #include <linux/rtnetlink.h>
 #include <arpa/inet.h>
 
+#include <libioth.h>
+
 struct nlq_msg;
 
-/* msg composition/enqueuing layer */
+/************ msg composition/enqueuing layer **************/
+/* create a message + add netlink message header (generate seq if nlmsg_seq==0)*/
 struct nlq_msg *nlq_createmsg(uint16_t nlmsg_type, uint16_t nlmsg_flags, uint32_t nlmsg_seq, uint32_t nlmsg_pid);
+
+/* add IP Service template headeer */
 static inline void nlq_add(struct nlq_msg *nlq_msg, const void *data, unsigned datalen);
 #define nlq_addstruct(nlq_msg, type, ...) \
 	do { \
 		struct type __tmp_struct = { __VA_ARGS__ }; \
 		nlq_add(nlq_msg, &__tmp_struct, sizeof(__tmp_struct)); \
 	} while(0)
+
+/* add attributes (TLV, type/length/value) */
 void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *nla_data, unsigned short nla_datalen);
+
+/* complete the compose phase, the netlink message can be queued, sent or dropped */
 void nlq_complete(struct nlq_msg *nlq_msg);
 
+/* xattr: nlq_createxattr:  create xattr
+ *	        add subattr using nlq_addattr here above 
+ *          nlq_addxattr: complete xattr and add then to the packet */
 struct nlq_msg *nlq_createxattr(void);
 void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_msg *xattr);
 
+/* netlink message queueing */
 void nlq_enqueue(struct nlq_msg *nlq_msg, struct nlq_msg **nlq_tail);
 struct nlq_msg *nlq_head(struct nlq_msg *nlq_tail);
 struct nlq_msg *nlq_dequeue(struct nlq_msg **nlq_tail);
 int nlq_length(struct nlq_msg *nlq_tail);
 
+/* free one message */
 void nlq_freemsg(struct nlq_msg *nlq_msg);
+/* free all the message ina queue */
 void nlq_free (struct nlq_msg **nlq_tail);
 
+/* complete + enqueue */
 static inline void nlq_complete_enqueue(struct nlq_msg *nlq_msg, struct nlq_msg **nlq_tail);
-static inline void nlq_dropmsg(struct nlq_msg *nlq_msg); // complete and free
+/* complete + free */
+static inline void nlq_dropmsg(struct nlq_msg *nlq_msg);
 
 /********************** CLIENT SIDE ************************/
 /* client netlink socket creation/send */
@@ -46,11 +63,14 @@ static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg);
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg);
 
 /* client rt_netlink reply management */
+/* +++ callback prototype */
 typedef int (*nlq_doit_f)(struct nlmsghdr *msg, struct nlattr **attr, 
 		const void *argin, void *argout, void *argenv);
+/* +++ do-nothing callback */
 int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
     const void *argin, void *argout, void *argenv);
-static inline int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
+/* +++ recv the reply and process it */
+int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
 		const void *argin, void *argout, void *argenv);
 
 /* open-complete-send-free-recv-processreply = conversation
@@ -107,40 +127,27 @@ void nlq_prefix2mask(int family, void *mask, int prefixlen);
 int nlq_mask2prefix(int family, const void *mask);
 
 /********************** STACKS in USER SPACE SUPPORT  ************************/
-struct nlqx_functions {
-	int (*open)(void *stack, int domain, int type, int protocol);
-	/* open means msocket + bind */
-	ssize_t (*recv)(void *stack, int sockfd, void *buf, size_t len, int flags);
-	ssize_t (*send)(void *stack, int sockfd, const void *buf, size_t len, int flags);
-	int (*close)(void *stack, int fd);
-};
+static int nlqx_open(struct ioth *stack, int protocol);
 
-static int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol);
-static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags);
-static inline ssize_t nlqx_sendmsg(struct nlqx_functions *xf, void *stack, int sockfd, struct nlq_msg *nlq_msg);
-static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd);
-
-int nlqx_recv_process_rtreply(struct nlqx_functions *xf, void *stack, int fd, nlq_doit_f cb, 
-		const void *argin, void *argout, void *argenv);
-int nlqx_rtconversation(struct nlqx_functions *xf, void *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
+int nlqx_rtconversation(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
 
 /* libc function for user space stacks */
-unsigned int nlqx_if_nametoindex(struct nlqx_functions *xf, void *stack, const char *ifname);
-char *nlqx_if_indextoname(struct nlqx_functions *xf, void *stack, unsigned int ifindex, char *ifname);
-struct nlq_if_nameindex *nlqx_if_nameindex(struct nlqx_functions *xf, void *stack);
-void nlqx_if_freenameindex(struct nlqx_functions *xf, void *stack, struct nlq_if_nameindex *ptr);
-int nlqx_ioctl(struct nlqx_functions *xf, void *stack, unsigned long request, void *arg);
+unsigned int nlqx_if_nametoindex(struct ioth *stack, const char *ifname);
+char *nlqx_if_indextoname(struct ioth *stack, unsigned int ifindex, char *ifname);
+struct nlq_if_nameindex *nlqx_if_nameindex(struct ioth *stack);
+void nlqx_if_freenameindex(struct ioth *stack, struct nlq_if_nameindex *ptr);
+int nlqx_ioctl(struct ioth *stack, unsigned long request, void *arg);
 
-int nlqx_linksetupdown(struct nlqx_functions *xf, void *stack, unsigned int ifindex, int updown);
-int nlqx_ipaddr_add(struct nlqx_functions *xf, void *stack, int family, void *addr, int prefixlen, int ifindex);
-int nlqx_ipaddr_del(struct nlqx_functions *xf, void *stack, int family, void *addr, int prefixlen, int ifindex);
-int nlqx_iproute_add(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
-int nlqx_iproute_del(struct nlqx_functions *xf, void *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
-int nlqx_iplink_add(struct nlqx_functions *xf, void *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data);
-int nlqx_iplink_del(struct nlqx_functions *xf, void *stack, const char *ifname, unsigned int ifindex);
+int nlqx_linksetupdown(struct ioth *stack, unsigned int ifindex, int updown);
+int nlqx_ipaddr_add(struct ioth *stack, int family, void *addr, int prefixlen, int ifindex);
+int nlqx_ipaddr_del(struct ioth *stack, int family, void *addr, int prefixlen, int ifindex);
+int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data);
+int nlqx_iplink_del(struct ioth *stack, const char *ifname, unsigned int ifindex);
 
-int nlqx_proc_net_dev(struct nlqx_functions *xf, void *stack, FILE *f);
+int nlqx_proc_net_dev(struct ioth *stack, FILE *f);
 
 /********************** SERVER SIDE ************************/
 /* RT NETLINK FAMILIES */
@@ -201,10 +208,10 @@ int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv);
 static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg, 
-		nlq_request_handlers_table handlers_table, struct nlqx_functions *xf, void *stackinfo,
+		nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
 	if (handlers_table == NULL)
-		return nlqx_rtconversation(xf, stackinfo, nlq_msg, cb, argin, argout, argenv);
+		return nlqx_rtconversation(stack, nlq_msg, cb, argin, argout, argenv);
 	else
 		return nlq_server_rtconversation(nlq_msg, handlers_table, stackinfo,
 				 cb, argin, argout, argenv);
@@ -222,9 +229,7 @@ struct nlq_msg {
 	union {
 		struct nlq_msg *nlq_next;
 		FILE *nlq_file;
-	} nlq_union;
-#define nlq_next nlq_union.nlq_next
-#define nlq_file nlq_union.nlq_file
+	};
 };
 
 static inline FILE *nlq_f(struct nlq_msg *nlq_msg) {
@@ -255,68 +260,30 @@ static inline void nlq_dropmsg(struct nlq_msg *nlq_msg) {
 	nlq_freemsg(nlq_msg);
 }
 
-static inline int nlqx_open(struct nlqx_functions *xf, void *stack, int protocol) {
-  if (xf && xf->open)
-    return xf->open(stack, AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
-  else {
-    int fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
-		if (fd >= 0) {
-			struct sockaddr_nl sanl = {AF_NETLINK, 0, 0, 0};
-			bind(fd, (struct sockaddr *) &sanl, sizeof(struct sockaddr_nl));
-		}
-		return fd;
+static inline int nlqx_open(struct ioth *stack, int protocol) {
+	int fd = ioth_msocket(stack, AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
+	if (fd >= 0) {
+		struct sockaddr_nl sanl = {AF_NETLINK, 0, 0, 0};
+		ioth_bind(fd, (struct sockaddr *) &sanl, sizeof(struct sockaddr_nl));
 	}
+	return fd;
 }
 
-static inline ssize_t nlqx_recv(struct nlqx_functions *xf, void *stack, int sockfd, void *buf, size_t len, int flags) {
-  if (xf && xf->recv)
-    return xf->recv(stack, sockfd, buf, len, flags);
-  else
-    return recv(sockfd, buf, len, flags);
-}
-
-static inline ssize_t nlqx_sendmsg(struct nlqx_functions *xf, void *stack, int sockfd, struct nlq_msg *nlq_msg) {
-  if (xf && xf->send)
-    return xf->send(stack, sockfd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
-  else
-    return send(sockfd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
-}
-
-static inline ssize_t nlqx_close(struct nlqx_functions *xf, void *stack, int fd) {
-  if (xf && xf->close)
-    return xf->close(stack, fd);
-  else
-    return close(fd);
-}
-
-static inline ssize_t nlqx_complete_send_freemsg(struct nlqx_functions *xf, void *stack, int fd, struct nlq_msg *nlq_msg) {
+static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
 	ssize_t retval;
 	nlq_complete(nlq_msg);
-	retval = nlqx_sendmsg(xf, stack, fd, nlq_msg);
+	retval = ioth_send(fd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
 	nlq_freemsg(nlq_msg);
 	return retval;
 }
 
 static inline int nlq_open(int protocol) {
-  return nlqx_open(NULL, NULL, protocol);
-}
-
-static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg) {
-	return nlqx_sendmsg(NULL, NULL, fd, nlq_msg);
-}
-
-static inline int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
-		const void *argin, void *argout, void *argenv) {
-	nlqx_recv_process_rtreply(NULL, NULL, fd, cb, argin, argout, argenv);
-}
-
-static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
-	return nlqx_complete_send_freemsg(NULL, NULL, fd, nlq_msg);
+  return nlqx_open(NULL, protocol);
 }
 
 static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv) {
-	return nlqx_rtconversation(NULL, NULL, nlq_msg, cb, argin, argout, argenv);
+	return nlqx_rtconversation(NULL, nlq_msg, cb, argin, argout, argenv);
 }
 
 static inline int nlq_return_errno(int ret_value) {
@@ -334,5 +301,4 @@ static inline int nlq_family2addrlen(int family) {
 		default: return 0;
   }
 }
-
 #endif

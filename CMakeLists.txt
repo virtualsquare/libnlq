@@ -11,10 +11,12 @@ add_definitions(-D_GNU_SOURCE)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(LIBNLQ_SOURCES nlq.c nlq_process_msg.c nlq_client.c nlq_ioctl.c nlq_proc.c)
+# set(LIBNLQ_SOURCES nlq.c nlq_process_msg.c nlq_client.c nlq_proc.c)
 add_library(nlq SHARED ${LIBNLQ_SOURCES})
 
 set_target_properties(nlq PROPERTIES VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR})
+target_link_libraries(nlq ioth)
 
 install(TARGETS nlq LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES libnlq.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

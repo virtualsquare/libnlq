@@ -70,7 +70,7 @@ static int cb_nlq_proc_net_dev(struct nlmsghdr *msg, struct nlattr **attr,
 	return 1;
 }
 
-static int nlq_common_proc_net_dev(nlq_request_handlers_table handlers_table, struct nlqx_functions *xf,
+static int nlq_common_proc_net_dev(nlq_request_handlers_table handlers_table, struct ioth *stack,
 		void *stackinfo, FILE *f) {
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
@@ -80,12 +80,12 @@ static int nlq_common_proc_net_dev(nlq_request_handlers_table handlers_table, st
 			"  Transmit\n"
 			" face |bytes    packets errs drop fifo frame compressed multicast|"
 			"bytes    packets errs drop fifo colls carrier compressed\n");
-	error = nlq_general_rtconversation(msg, handlers_table, xf, stackinfo, cb_nlq_proc_net_dev, NULL, f, NULL);
+	error = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo, cb_nlq_proc_net_dev, NULL, f, NULL);
 	return nlq_return_errno(error);
 }
 
-int nlqx_proc_net_dev(struct nlqx_functions *xf, void *stack, FILE *f) {
-	return nlq_common_proc_net_dev(NULL, xf, stack, f);
+int nlqx_proc_net_dev(struct ioth *stack, FILE *f) {
+	return nlq_common_proc_net_dev(NULL, NULL, stack, f);
 }
 
 int nlq_proc_net_dev(FILE *f) {
