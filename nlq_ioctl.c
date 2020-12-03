@@ -47,12 +47,12 @@ static int cb_ioctl_SIOCGIFNAME(struct nlmsghdr *msg, struct nlattr **attr,
 		return -EINVAL;
 }
 
-static int nlq_ioctl_SIOCGIFNAME(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, void *arg) {
+static int nlq_ioctl_SIOCGIFNAME(nlq_request_handlers_table handlers_table, void *stackinfo, void *arg) {
 	int ret_value;
 	struct ifreq *ifr = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index=ifr->ifr_ifindex);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFNAME, &ifr->ifr_ifindex, arg, NULL);
 	return nlq_return_errno(ret_value);
 }
@@ -109,7 +109,7 @@ static int cb_ioctl_SIOCGIFINFO(struct nlmsghdr *msg, struct nlattr **attr,
 	return 0;
 }
 
-static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, unsigned long request, void *arg) {
+static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
 	int ret_value;
 	struct ifreq *ifr = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
@@ -117,16 +117,16 @@ static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, stru
 	copy_ifname_no_alias(if_name, ifr->ifr_name, sizeof(ifr->ifr_name));
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
 	nlq_addattr(msg, IFLA_IFNAME, if_name, strlen(if_name) + 1);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFINFO, &request, arg, NULL);
 	return nlq_return_errno(ret_value);
 }
 
-static int _nlq_SIOCGIFINDEX(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, char *ifname) {
+static int _nlq_SIOCGIFINDEX(nlq_request_handlers_table handlers_table, void *stackinfo, char *ifname) {
 	int ret_value;
 	struct ifreq ifr = {};
 	copy_ifname_no_alias(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-	ret_value = nlq_ioctl_SIOCGIFINFO(handlers_table, stack, stackinfo, SIOCGIFINDEX, &ifr);
+	ret_value = nlq_ioctl_SIOCGIFINFO(handlers_table, stackinfo, SIOCGIFINDEX, &ifr);
 	if (ret_value >= 0) {
 		if (ifr.ifr_ifindex > 0)
 			return ifr.ifr_ifindex;
@@ -141,9 +141,9 @@ static inline int hwaddrlen(int arphrd_type) {
 	return 6;
 }
 
-static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, unsigned long request, void *arg) {
+static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
 	struct ifreq *ifr = arg;
-	int ifindex = _nlq_SIOCGIFINDEX(handlers_table, stack, stackinfo, ifr->ifr_name);
+	int ifindex = _nlq_SIOCGIFINDEX(handlers_table, stackinfo, ifr->ifr_name);
 	if (ifindex > 0) {
 		struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK, NLM_F_REQUEST|NLM_F_ACK, 0, 0);
 		int ret_value;
@@ -174,7 +174,7 @@ static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, stru
 				nlq_addattr(msg, IFLA_ADDRESS, &ifr->ifr_hwaddr.sa_data, hwaddrlen(ifr->ifr_hwaddr.sa_family));
 				break;
 		}
-		ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+		ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 				nlq_process_null_cb, NULL, NULL, NULL);
 		return nlq_return_errno(ret_value);
 	} else
@@ -221,13 +221,13 @@ static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 	return 0;
 }
 
-static int nlq_ioctl_SIOCGINADDR(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, unsigned long request, void *arg) {
+static int nlq_ioctl_SIOCGINADDR(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
 	int ret_value;
 	struct ifreq *ifr = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 	nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
 	ifr->ifr_addr.sa_family = 0;
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGINADDR, &request, arg, NULL);
 	if (ifr->ifr_addr.sa_family == 0)
 		return errno = EADDRNOTAVAIL, -1;
@@ -307,15 +307,15 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 	return 0;
 }
 
-static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, unsigned long request, void *arg) {
+static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
 	struct ifreq *ifr = arg;
-	int ifindex = _nlq_SIOCGIFINDEX(handlers_table, stack, stackinfo, ifr->ifr_name);
+	int ifindex = _nlq_SIOCGIFINDEX(handlers_table, stackinfo, ifr->ifr_name);
 	if (ifindex > 0) {
 		int ret_value;
 		struct SIOCSINADDR_msgs msgs = {NULL, NULL};
 		struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 		nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
-		ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+		ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 				cb_ioctl_SIOCSINADDR, &request, arg, &msgs);
 		if (ret_value < 0) {
 			if (msgs.del_msg != NULL) nlq_dropmsg(msgs.del_msg);
@@ -336,7 +336,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, stru
 				else
 					return errno = ENODEV, -1;
 			} else {
-				ret_value = nlq_general_rtconversation(msgs.del_msg, handlers_table, stack, stackinfo,
+				ret_value = nlq_general_rtconversation(msgs.del_msg, handlers_table, stackinfo,
 						nlq_process_null_cb, NULL, NULL, NULL);
 				if (ret_value < 0) {
 					if (msgs.new_msg != NULL) nlq_dropmsg(msgs.new_msg);
@@ -344,7 +344,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, stru
 				}
 			}
 			if (msgs.new_msg != NULL) {
-				ret_value = nlq_general_rtconversation(msgs.new_msg, handlers_table, stack, stackinfo,
+				ret_value = nlq_general_rtconversation(msgs.new_msg, handlers_table, stackinfo,
 						nlq_process_null_cb, NULL, NULL, NULL);
 				return nlq_return_errno(ret_value);
 			} else
@@ -376,27 +376,27 @@ static int cb_ioctl_SIOCGIFCONF(struct nlmsghdr *msg, struct nlattr **attr,
 	return 0;
 }
 
-static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo, void *arg) {
+static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, void *stackinfo, void *arg) {
 	int ret_value;
 	int index = 0;
 	struct ifconf *ifc = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stack, stackinfo,
+	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFCONF, NULL, arg, &index);
 	ifc->ifc_len = index * sizeof(struct ifreq);
 	return nlq_return_errno(ret_value);
 }
 
 /* commmon code of ioctl implementation. It can be used client side or server side */
-static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct ioth *stack,
+static int nlq_common_ioctl(nlq_request_handlers_table handlers_table,
 		void *stackinfo, unsigned long request, void *arg) {
 	struct ifreq *ifr = arg;
 	//printf("%lx\n", request);
 	switch (request) {
 		/* return ifr_name given ifr_ifindex */
 		case SIOCGIFNAME:
-			return nlq_ioctl_SIOCGIFNAME(handlers_table, stack, stackinfo, arg);
+			return nlq_ioctl_SIOCGIFNAME(handlers_table, stackinfo, arg);
 			/* get interface info */
 		case SIOCGIFINDEX:
 		case SIOCGIFFLAGS:
@@ -404,32 +404,32 @@ static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct io
 		case SIOCGIFTXQLEN:
 		case SIOCGIFHWADDR:
 		case SIOCGIFMAP:
-			return nlq_ioctl_SIOCGIFINFO(handlers_table, stack, stackinfo, request, arg);
+			return nlq_ioctl_SIOCGIFINFO(handlers_table, stackinfo, request, arg);
 			/* set interface info */
 		case SIOCSIFFLAGS:
 		case SIOCSIFMTU:
 		case SIOCSIFTXQLEN:
 		case SIOCSIFHWADDR:
-			return nlq_ioctl_SIOCSIFINFO(handlers_table, stack, stackinfo, request, arg);
+			return nlq_ioctl_SIOCSIFINFO(handlers_table, stackinfo, request, arg);
 			/* get IP address info */
 		case SIOCGIFADDR:
 		case SIOCGIFDSTADDR:
 		case SIOCGIFBRDADDR:
 		case SIOCGIFNETMASK:
-			return nlq_ioctl_SIOCGINADDR(handlers_table, stack, stackinfo, request, arg);
+			return nlq_ioctl_SIOCGINADDR(handlers_table, stackinfo, request, arg);
 			/* set IP address info */
 		case SIOCSIFADDR:
 		case SIOCSIFDSTADDR:
 		case SIOCSIFBRDADDR:
 		case SIOCSIFNETMASK:
-			return nlq_ioctl_SIOCSINADDR(handlers_table, stack, stackinfo, request, arg);
+			return nlq_ioctl_SIOCSINADDR(handlers_table, stackinfo, request, arg);
 			/* linux compatibility: it sets ifr_metric to 0 if you attempt to read it */
 		case SIOCGIFMETRIC:
 			ifr->ifr_metric = 0;
 			return 0;
 			/* Return a list of interface addresses */
 		case SIOCGIFCONF:
-			return nlq_ioctl_SIOCGIFCONF(handlers_table, stack, stackinfo, arg);
+			return nlq_ioctl_SIOCGIFCONF(handlers_table, stackinfo, arg);
 	}
 	errno = EOPNOTSUPP;
 	return -1;
@@ -437,12 +437,12 @@ static int nlq_common_ioctl(nlq_request_handlers_table handlers_table, struct io
 
 /* client side ioctl, multi stack */
 int nlqx_ioctl(struct ioth *stack, unsigned long request, void *arg) {
-	return nlq_common_ioctl(NULL, stack, NULL, request, arg);
+	return nlq_common_ioctl(NULL, stack, request, arg);
 }
 
 /* client side ioctl, no fd, default stack */
 int nlq_ioctl_nofd(unsigned long request, void *arg) {
-	return nlq_common_ioctl(NULL, NULL, NULL, request, arg);
+	return nlq_common_ioctl(NULL, NULL, request, arg);
 }
 
 /* client side ioctl, default stack, glibc comaptible */
@@ -454,10 +454,10 @@ int nlq_ioctl(int fd, unsigned long request, void *arg) {
 		errno = ENOTSOCK;
 		return -1;
 	}
-	return nlq_common_ioctl(NULL, NULL, NULL, request, arg);
+	return nlq_common_ioctl(NULL, NULL, request, arg);
 }
 
 /* server side ioctl */
 int nlq_server_ioctl(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg) {
-	return nlq_common_ioctl(handlers_table, NULL, stackinfo, request, arg);
+	return nlq_common_ioctl(handlers_table, stackinfo, request, arg);
 }

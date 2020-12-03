@@ -35,7 +35,7 @@ void nlq_addattr(struct nlq_msg *nlq_msg, unsigned short nla_type, const void *n
 void nlq_complete(struct nlq_msg *nlq_msg);
 
 /* xattr: nlq_createxattr:  create xattr
- *	        add subattr using nlq_addattr here above 
+ *	        add subattr using nlq_addattr here above
  *          nlq_addxattr: complete xattr and add then to the packet */
 struct nlq_msg *nlq_createxattr(void);
 void nlq_addxattr(struct nlq_msg *nlq_msg, unsigned short nla_type, struct nlq_msg *xattr);
@@ -64,13 +64,13 @@ static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg)
 
 /* client rt_netlink reply management */
 /* +++ callback prototype */
-typedef int (*nlq_doit_f)(struct nlmsghdr *msg, struct nlattr **attr, 
+typedef int (*nlq_doit_f)(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv);
 /* +++ do-nothing callback */
 int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
     const void *argin, void *argout, void *argenv);
 /* +++ recv the reply and process it */
-int nlq_recv_process_rtreply(int fd, nlq_doit_f cb, 
+int nlq_recv_process_rtreply(int fd, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv);
 
 /* open-complete-send-free-recv-processreply = conversation
@@ -165,15 +165,15 @@ int nlqx_proc_net_dev(struct ioth *stack, FILE *f);
 #define RTM_GET 2
 #define RTM_SET 3
 
-/* e.g. 
+/* e.g.
 	 RTM_NEWLINK => family=RTMF_LINK operation=RTM_NEW
 	 RTM_DELROUTE => family=RTMF_ROUTE operation=RTM_DEL */
- 
+
 /* handlers: for each "family":
 	 search_entry -> returns the address of the item selected from the request message
-	 get -> get info of an item (or dump the entire table if entry == NULL) 
+	 get -> get info of an item (or dump the entire table if entry == NULL)
 	 ...... add a packet or more packets in msgq
-	 new -> create a new item 
+	 new -> create a new item
 	 del -> delete an item
 	 set -> modify an item (a new message on an existing entry calls set, not new).
 	 */
@@ -204,14 +204,18 @@ int nlq_server_proc_net_dev(nlq_request_handlers_table handlers_table, void *sta
 	 of services like netdevice ioctls using netlink implementation */
 int nlq_server_process_rtreply(struct nlq_msg *reply, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
-int nlq_server_rtconversation(struct nlq_msg *nlq_msg, 
+int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv);
-static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg, 
-		nlq_request_handlers_table handlers_table, struct ioth *stack, void *stackinfo,
+
+/* nlq_general_rtconversation can be used client side and server side.
+	 handlers_table != NULL => server side, stackinfo is the arg for the req handlers.
+	 handlers_table == NULL => client side, stackinfo is the ioth pointer */
+static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg,
+		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
 	if (handlers_table == NULL)
-		return nlqx_rtconversation(stack, nlq_msg, cb, argin, argout, argenv);
+		return nlqx_rtconversation(stackinfo, nlq_msg, cb, argin, argout, argenv);
 	else
 		return nlq_server_rtconversation(nlq_msg, handlers_table, stackinfo,
 				 cb, argin, argout, argenv);
