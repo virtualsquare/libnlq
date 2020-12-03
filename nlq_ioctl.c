@@ -1,6 +1,6 @@
 /*
  *   LIBNLQ: Netlink Queue library
- *   Copyright (C) 2018  Renzo Davoli <renzo@cs.unibo.it>
+ *   Copyright (C) 2018-2020  Renzo Davoli <renzo@cs.unibo.it>
  *   VirtualSquare team.
  *
  *   This program is free software: you can redistribute it and/or modify
