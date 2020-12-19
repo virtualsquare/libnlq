@@ -12,7 +12,7 @@
 #include <linux/rtnetlink.h>
 #include <arpa/inet.h>
 
-#include <libioth.h>
+#include <ioth.h>
 
 struct nlq_msg;
 
