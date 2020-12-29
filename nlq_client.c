@@ -65,7 +65,7 @@ unsigned int nlqx_if_nametoindex(struct ioth *stack, const char *ifname) {
 #ifndef IF_NAMETOINDEX_DUMP
 	nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
 #endif
-	error = nlqx_rtconversation(stack, msg, cb_if_nametoindex, ifname, &retvalue, NULL);
+	error = nlqx_rtdialog(stack, msg, cb_if_nametoindex, ifname, &retvalue, NULL);
 	if (error < 0)
 		errno = -error;
 	else if (retvalue == 0)
@@ -87,7 +87,7 @@ char *nlqx_if_indextoname(struct ioth *stack, unsigned int ifindex, char *ifname
 	char *retvalue = NULL;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
-	if ((error = nlqx_rtconversation(stack, msg, cb_if_indextoname, &ifindex, &retvalue, ifname)) < 0)
+	if ((error = nlqx_rtdialog(stack, msg, cb_if_indextoname, &ifindex, &retvalue, ifname)) < 0)
 		errno = (error == -ENODEV) ? ENXIO : -error;
 	return retvalue;
 }
@@ -125,7 +125,7 @@ struct nlq_if_nameindex *nlqx_if_nameindex(struct ioth *stack) {
 		int error;
 		struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST|NLM_F_DUMP, 0, 0);
 		nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC);
-		error = nlqx_rtconversation(stack, msg, cb_if_nameindex, NULL, f, NULL);
+		error = nlqx_rtdialog(stack, msg, cb_if_nameindex, NULL, f, NULL);
 		__add_if_nameindex(f, 0, NULL);
 		fclose(f);
 		if (error < 0) {
@@ -143,7 +143,7 @@ int nlqx_linksetupdown(struct ioth *stack, unsigned int ifindex, int updown) {
 	struct nlq_msg *msg = nlq_createmsg(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex,
 			.ifi_flags=(updown) ? IFF_UP : 0, .ifi_change=IFF_UP);
-	ret_value = nlqx_rtconversation(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
+	ret_value = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(ret_value);
 }
 
@@ -163,7 +163,7 @@ static int __nlq_ipaddr(struct ioth *stack,
 				.ifa_index = ifindex);
 		nlq_addattr(msg, IFA_LOCAL, addr, addrlen);
 		nlq_addattr(msg, IFA_ADDRESS, addr, addrlen);
-		ret_value = nlqx_rtconversation(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
+		ret_value = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 		return nlq_return_errno(ret_value);
 	}
 }
@@ -195,7 +195,7 @@ static int __nlq_iproute(struct ioth *stack,
 		if (dst_prefixlen > 0)
 			nlq_addattr(msg, RTA_DST, dst_addr, addrlen);
 		nlq_addattr(msg, RTA_GATEWAY, gw_addr, addrlen);
-		ret_value = nlqx_rtconversation(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
+		ret_value = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 		return nlq_return_errno(ret_value);
 	}
 }
@@ -222,7 +222,7 @@ int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex
 	if (data)
 		nlq_addattr(linkinfo, IFLA_INFO_DATA, data, strlen(data) + 1);
 	nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
-	error = nlqx_rtconversation(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
+	error = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(error);
 }
 
@@ -232,7 +232,7 @@ int nlqx_iplink_del(struct ioth *stack, const char *ifname, unsigned int ifindex
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifindex);
 	if (ifname)
 		nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
-	error = nlqx_rtconversation(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
+	error = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(error);
 }
 

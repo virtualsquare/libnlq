@@ -150,10 +150,10 @@ int nlq_recv_process_rtreply(int fd, nlq_doit_f cb,
 }
 
 /* This is the entire process of a request (client side) as a single function.
- * rtconversation has benn designed to automatize the whole process:
- * the typical sequence of actions is: nlq_createmsg, nlq_addstruct/addattr, nlqx_rtconversation
+ * rtdialog has benn designed to automatize the whole process:
+ * the typical sequence of actions is: nlq_createmsg, nlq_addstruct/addattr, nlqx_rtdialog
  */
-int nlqx_rtconversation(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
+int nlqx_rtdialog(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv) {
 	int fd = nlqx_open(stack, NETLINK_ROUTE);
 	int error;
@@ -273,10 +273,10 @@ int nlq_server_process_rtreply(struct nlq_msg *reply, nlq_doit_f cb,
 	return error;
 }
 
-/* this function has the same role of nlqx_rtconversation for the server side
+/* this function has the same role of nlqx_rtdialog for the server side
 	 emulation for netlink messages generated at server side.
  */
-int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
+int nlq_server_rtdialog(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
 	struct nlq_msg *reply;

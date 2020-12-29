@@ -79,7 +79,7 @@ static int nlq_common_proc_net_dev(nlq_request_handlers_table handlers_table, vo
 			"  Transmit\n"
 			" face |bytes    packets errs drop fifo frame compressed multicast|"
 			"bytes    packets errs drop fifo colls carrier compressed\n");
-	error = nlq_general_rtconversation(msg, handlers_table, stackinfo, cb_nlq_proc_net_dev, NULL, f, NULL);
+	error = nlq_general_rtdialog(msg, handlers_table, stackinfo, cb_nlq_proc_net_dev, NULL, f, NULL);
 	return nlq_return_errno(error);
 }
 

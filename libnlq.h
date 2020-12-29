@@ -73,9 +73,9 @@ int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
 int nlq_recv_process_rtreply(int fd, nlq_doit_f cb,
 		const void *argin, void *argout, void *argenv);
 
-/* open-complete-send-free-recv-processreply = conversation
+/* open-complete-send-free-recv-processreply = dialog
 	 the whole interaction in a single function */
-static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
+static inline int nlq_rtdialog(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
 
 /* negative retval -> errno conversion */
@@ -129,7 +129,7 @@ int nlq_mask2prefix(int family, const void *mask);
 /********************** STACKS in USER SPACE SUPPORT  ************************/
 static int nlqx_open(struct ioth *stack, int protocol);
 
-int nlqx_rtconversation(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
+int nlqx_rtdialog(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
 
 /* libc function for user space stacks */
@@ -204,20 +204,20 @@ int nlq_server_proc_net_dev(nlq_request_handlers_table handlers_table, void *sta
 	 of services like netdevice ioctls using netlink implementation */
 int nlq_server_process_rtreply(struct nlq_msg *reply, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv);
-int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
+int nlq_server_rtdialog(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv);
 
-/* nlq_general_rtconversation can be used client side and server side.
+/* nlq_general_rtdialog can be used client side and server side.
 	 handlers_table != NULL => server side, stackinfo is the arg for the req handlers.
 	 handlers_table == NULL => client side, stackinfo is the ioth pointer */
-static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg,
+static inline int nlq_general_rtdialog(struct nlq_msg *nlq_msg,
 		nlq_request_handlers_table handlers_table, void *stackinfo,
 		nlq_doit_f cb, const void *argin, void *argout, void *argenv) {
 	if (handlers_table == NULL)
-		return nlqx_rtconversation(stackinfo, nlq_msg, cb, argin, argout, argenv);
+		return nlqx_rtdialog(stackinfo, nlq_msg, cb, argin, argout, argenv);
 	else
-		return nlq_server_rtconversation(nlq_msg, handlers_table, stackinfo,
+		return nlq_server_rtdialog(nlq_msg, handlers_table, stackinfo,
 				 cb, argin, argout, argenv);
 }
 
@@ -285,9 +285,9 @@ static inline int nlq_open(int protocol) {
   return nlqx_open(NULL, protocol);
 }
 
-static inline int nlq_rtconversation(struct nlq_msg *nlq_msg, nlq_doit_f cb,
+static inline int nlq_rtdialog(struct nlq_msg *nlq_msg, nlq_doit_f cb,
     const void *argin, void *argout, void *argenv) {
-	return nlqx_rtconversation(NULL, nlq_msg, cb, argin, argout, argenv);
+	return nlqx_rtdialog(NULL, nlq_msg, cb, argin, argout, argenv);
 }
 
 static inline int nlq_return_errno(int ret_value) {

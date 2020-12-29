@@ -52,7 +52,7 @@ static int nlq_ioctl_SIOCGIFNAME(nlq_request_handlers_table handlers_table, void
 	struct ifreq *ifr = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET, .ifi_index=ifr->ifr_ifindex);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+	ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFNAME, &ifr->ifr_ifindex, arg, NULL);
 	return nlq_return_errno(ret_value);
 }
@@ -117,7 +117,7 @@ static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, void
 	copy_ifname_no_alias(if_name, ifr->ifr_name, sizeof(ifr->ifr_name));
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
 	nlq_addattr(msg, IFLA_IFNAME, if_name, strlen(if_name) + 1);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+	ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFINFO, &request, arg, NULL);
 	return nlq_return_errno(ret_value);
 }
@@ -174,7 +174,7 @@ static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, void
 				nlq_addattr(msg, IFLA_ADDRESS, &ifr->ifr_hwaddr.sa_data, hwaddrlen(ifr->ifr_hwaddr.sa_family));
 				break;
 		}
-		ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+		ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 				nlq_process_null_cb, NULL, NULL, NULL);
 		return nlq_return_errno(ret_value);
 	} else
@@ -227,7 +227,7 @@ static int nlq_ioctl_SIOCGINADDR(nlq_request_handlers_table handlers_table, void
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 	nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
 	ifr->ifr_addr.sa_family = 0;
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+	ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGINADDR, &request, arg, NULL);
 	if (ifr->ifr_addr.sa_family == 0)
 		return errno = EADDRNOTAVAIL, -1;
@@ -315,7 +315,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 		struct SIOCSINADDR_msgs msgs = {NULL, NULL};
 		struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 		nlq_addstruct(msg, ifaddrmsg, .ifa_family=AF_INET);
-		ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+		ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 				cb_ioctl_SIOCSINADDR, &request, arg, &msgs);
 		if (ret_value < 0) {
 			if (msgs.del_msg != NULL) nlq_dropmsg(msgs.del_msg);
@@ -336,7 +336,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 				else
 					return errno = ENODEV, -1;
 			} else {
-				ret_value = nlq_general_rtconversation(msgs.del_msg, handlers_table, stackinfo,
+				ret_value = nlq_general_rtdialog(msgs.del_msg, handlers_table, stackinfo,
 						nlq_process_null_cb, NULL, NULL, NULL);
 				if (ret_value < 0) {
 					if (msgs.new_msg != NULL) nlq_dropmsg(msgs.new_msg);
@@ -344,7 +344,7 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 				}
 			}
 			if (msgs.new_msg != NULL) {
-				ret_value = nlq_general_rtconversation(msgs.new_msg, handlers_table, stackinfo,
+				ret_value = nlq_general_rtdialog(msgs.new_msg, handlers_table, stackinfo,
 						nlq_process_null_cb, NULL, NULL, NULL);
 				return nlq_return_errno(ret_value);
 			} else
@@ -382,7 +382,7 @@ static int nlq_ioctl_SIOCGIFCONF(nlq_request_handlers_table handlers_table, void
 	struct ifconf *ifc = arg;
 	struct nlq_msg *msg = nlq_createmsg(RTM_GETADDR, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
-	ret_value = nlq_general_rtconversation(msg, handlers_table, stackinfo,
+	ret_value = nlq_general_rtdialog(msg, handlers_table, stackinfo,
 			cb_ioctl_SIOCGIFCONF, NULL, arg, &index);
 	ifc->ifc_len = index * sizeof(struct ifreq);
 	return nlq_return_errno(ret_value);
