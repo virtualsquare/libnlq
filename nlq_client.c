@@ -220,7 +220,7 @@ int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex
 	if (ifindex != ifi_index)
 		nlq_addattr(msg, IFLA_NEW_IFINDEX, &ifi_index, sizeof(ifi_index));
 	if (data)
-		nlq_addattr(linkinfo, IFLA_INFO_DATA, data, strlen(data) + 1);
+		nlq_addattr(linkinfo, IFLA_INFO_SLAVE_KIND, data, strlen(data) + 1);
 	nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
 	error = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(error);
