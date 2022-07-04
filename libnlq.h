@@ -108,8 +108,8 @@ int nlq_linksetupdown(unsigned int ifindex, int updown);
 int nlq_ipaddr_add(int family, void *addr, int prefixlen, int ifindex);
 int nlq_ipaddr_del(int family, void *addr, int prefixlen, int ifindex);
 /* like "ip route {add,del} dst_addr/prefixlen via gw_addr" */
-int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
-int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
+int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex);
+int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex);
 /* like "ip link add $ifname type $type" */
 int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, const char *data);
 /* like "ip link del $ifname" (ifname can be NULL or ifindex can be 0)*/
@@ -142,9 +142,12 @@ int nlqx_ioctl(struct ioth *stack, unsigned long request, void *arg);
 int nlqx_linksetupdown(struct ioth *stack, unsigned int ifindex, int updown);
 int nlqx_ipaddr_add(struct ioth *stack, int family, void *addr, int prefixlen, int ifindex);
 int nlqx_ipaddr_del(struct ioth *stack, int family, void *addr, int prefixlen, int ifindex);
-int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
-int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr);
-int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data);
+int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr,
+		unsigned int ifindex);
+int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr,
+		unsigned int ifindex);
+int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex,
+		const char *type, const char *data);
 int nlqx_iplink_del(struct ioth *stack, const char *ifname, unsigned int ifindex);
 
 int nlqx_proc_net_dev(struct ioth *stack, FILE *f);

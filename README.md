@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
 
   nlq_linksetupdown(ifindex, 1);
   nlq_ipaddr_add(AF_INET, ipv4addr, 24, ifindex);
-  nlq_iproute_add(AF_INET, ipv4default, 0, ipv4gw);
+  nlq_iproute_add(AF_INET, ipv4default, 0, ipv4gw, 0);
   nlq_ipaddr_add(AF_INET6, ipv6addr, 64, ifindex);
-  nlq_iproute_add(AF_INET6, ipv6default, 0, ipv6gw);
+  nlq_iproute_add(AF_INET6, ipv6default, 0, ipv6gw, 0);
 }
 ```
 

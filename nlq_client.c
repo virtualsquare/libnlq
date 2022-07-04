@@ -177,13 +177,14 @@ int nlqx_ipaddr_del(struct ioth *stack, int family, void *addr, int prefixlen, i
 }
 
 static int __nlq_iproute(struct ioth *stack,
-		int request, int xflags, int family, void *dst_addr, int dst_prefixlen, void *gw_addr) {
+		int request, int xflags, int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex) {
 	int addrlen = nlq_family2addrlen(family);
 	if (addrlen == 0) {
 		errno = EPROTOTYPE;
 		return -1;
 	} else {
 		int ret_value;
+		uint32_t rta_ifindex = ifindex;
 		struct nlq_msg *msg = nlq_createmsg(request, NLM_F_REQUEST | NLM_F_ACK | xflags, 0, 0);
 		nlq_addstruct(msg, rtmsg,
 				.rtm_family = family,
@@ -194,18 +195,25 @@ static int __nlq_iproute(struct ioth *stack,
 				.rtm_type = RTN_UNICAST);
 		if (dst_prefixlen > 0)
 			nlq_addattr(msg, RTA_DST, dst_addr, addrlen);
-		nlq_addattr(msg, RTA_GATEWAY, gw_addr, addrlen);
+		if (gw_addr != NULL)
+			nlq_addattr(msg, RTA_GATEWAY, gw_addr, addrlen);
+		if (rta_ifindex > 0)
+			nlq_addattr(msg, RTA_OIF, &rta_ifindex, sizeof(rta_ifindex));
 		ret_value = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 		return nlq_return_errno(ret_value);
 	}
 }
 
-int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr) {
-	return __nlq_iproute(stack, RTM_NEWROUTE, NLM_F_EXCL | NLM_F_CREATE, family, dst_addr, dst_prefixlen, gw_addr);
+int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen,
+		void *gw_addr, unsigned int ifindex) {
+	return __nlq_iproute(stack, RTM_NEWROUTE, NLM_F_EXCL | NLM_F_CREATE, family, dst_addr, dst_prefixlen, gw_addr,
+			ifindex);
 }
 
-int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr) {
-	return __nlq_iproute(stack, RTM_DELROUTE, 0, family, dst_addr, dst_prefixlen, gw_addr);
+int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen,
+		void *gw_addr, unsigned int ifindex) {
+	return __nlq_iproute(stack, RTM_DELROUTE, 0, family, dst_addr, dst_prefixlen, gw_addr,
+			ifindex);
 }
 
 int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data) {
@@ -264,12 +272,12 @@ int nlq_ipaddr_del(int family, void *addr, int prefixlen, int ifindex) {
 	return nlqx_ipaddr_del(NULL, family, addr, prefixlen, ifindex);
 }
 
-int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr) {
-	return nlqx_iproute_add(NULL, family, dst_addr, dst_prefixlen, gw_addr);
+int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex) {
+	return nlqx_iproute_add(NULL, family, dst_addr, dst_prefixlen, gw_addr, ifindex);
 }
 
-int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr) {
-	return nlqx_iproute_del(NULL, family, dst_addr, dst_prefixlen, gw_addr);
+int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex) {
+	return nlqx_iproute_del(NULL, family, dst_addr, dst_prefixlen, gw_addr, ifindex);
 }
 
 int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, const char *data) {
