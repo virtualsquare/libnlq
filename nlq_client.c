@@ -36,6 +36,17 @@
 
 #define IF_NAMESIZE       16
 
+#define NLQ_ADDRDATA2PREFIX_MAGIC 0x70
+#define NLQ_ROUTEDATA2PREFIX_MAGIC 0x60
+
+int nlq_addrdata2prefix(unsigned char prefixlen, unsigned char flags, unsigned char scope) {
+	return NLQ_ADDRDATA2PREFIX_MAGIC << 24 | flags << 16 | scope << 8 | prefixlen;
+}
+
+int nlq_routedata2prefix(unsigned char prefixlen, unsigned char type, unsigned char scope) {
+	return NLQ_ROUTEDATA2PREFIX_MAGIC << 24 | type << 16 | scope << 8 | prefixlen;
+}
+
 /* define to use NLM_F_DUMP instead of IFLA_IFNAME for nlq_if_nametoindex */
 // #define IF_NAMETOINDEX_DUMP
 
@@ -156,11 +167,19 @@ static int __nlq_ipaddr(struct ioth *stack,
 	} else {
 		int ret_value;
 		struct nlq_msg *msg = nlq_createmsg(request, NLM_F_REQUEST | NLM_F_ACK | xflags, 0, 0);
-		nlq_addstruct(msg, ifaddrmsg,
-				.ifa_family = family,
-				.ifa_prefixlen = prefixlen,
-				.ifa_scope = RT_SCOPE_UNIVERSE,
-				.ifa_index = ifindex);
+		if (prefixlen >> 24 == NLQ_ADDRDATA2PREFIX_MAGIC)
+			nlq_addstruct(msg, ifaddrmsg,
+					.ifa_family = family,
+					.ifa_prefixlen = prefixlen,
+					.ifa_scope = RT_SCOPE_UNIVERSE,
+					.ifa_index = ifindex);
+		else
+			nlq_addstruct(msg, ifaddrmsg,
+					.ifa_family = family,
+					.ifa_prefixlen = prefixlen,
+					.ifa_scope = prefixlen >> 8,
+					.ifa_flags = prefixlen >> 16,
+					.ifa_index = ifindex);
 		nlq_addattr(msg, IFA_LOCAL, addr, addrlen);
 		nlq_addattr(msg, IFA_ADDRESS, addr, addrlen);
 		ret_value = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
@@ -186,7 +205,16 @@ static int __nlq_iproute(struct ioth *stack,
 		int ret_value;
 		uint32_t rta_ifindex = ifindex;
 		struct nlq_msg *msg = nlq_createmsg(request, NLM_F_REQUEST | NLM_F_ACK | xflags, 0, 0);
-		nlq_addstruct(msg, rtmsg,
+		if (dst_prefixlen >> 24 == NLQ_ROUTEDATA2PREFIX_MAGIC)
+			nlq_addstruct(msg, rtmsg,
+				.rtm_family = family,
+				.rtm_dst_len = dst_prefixlen,
+				.rtm_table = RT_TABLE_MAIN,
+				.rtm_protocol = RTPROT_BOOT,
+				.rtm_scope = dst_prefixlen >> 8,
+				.rtm_type = dst_prefixlen >> 16);
+		else
+			nlq_addstruct(msg, rtmsg,
 				.rtm_family = family,
 				.rtm_dst_len = dst_prefixlen,
 				.rtm_table = RT_TABLE_MAIN,

@@ -126,6 +126,13 @@ static inline int nlq_family2addrlen(int family);
 void nlq_prefix2mask(int family, void *mask, int prefixlen);
 int nlq_mask2prefix(int family, const void *mask);
 
+/* extra args for nlq_ipaddr* and nlq_iproute*.
+ * e.g. nlq_ipaddr_add(family, addr, nlq_addrdata2prefix(prefix, flags, scope), ifindex)
+ *      nlq_iproute_add(family, dst_addr, nl_routedata2prefix(prefix, type, scope), gw_addr, ifindex)
+ */
+int nlq_addrdata2prefix(unsigned char prefixlen, unsigned char flags, unsigned char scope);
+int nlq_routedata2prefix(unsigned char prefixlen, unsigned char type, unsigned char scope);
+
 /********************** STACKS in USER SPACE SUPPORT  ************************/
 static int nlqx_open(struct ioth *stack, int protocol);
 
