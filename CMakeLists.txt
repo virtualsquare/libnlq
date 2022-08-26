@@ -9,9 +9,9 @@ include(GNUInstallDirs)
 add_definitions(-D_GNU_SOURCE)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -O2 -pedantic -Wall -Wextra")
 
 set(LIBNLQ_SOURCES nlq.c nlq_process_msg.c nlq_client.c nlq_ioctl.c nlq_proc.c)
-# set(LIBNLQ_SOURCES nlq.c nlq_process_msg.c nlq_client.c nlq_proc.c)
 add_library(nlq SHARED ${LIBNLQ_SOURCES})
 
 set_target_properties(nlq PROPERTIES VERSION ${PROJECT_VERSION}

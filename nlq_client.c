@@ -52,6 +52,9 @@ int nlq_routedata2prefix(unsigned char prefixlen, unsigned char type, unsigned c
 
 static int cb_if_nametoindex(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) attr;
+	(void) argin;
+	(void) argenv;
 	struct ifinfomsg *ifinfomsg = (struct ifinfomsg *) msg + 1;
 #ifdef IF_NAMETOINDEX_DUMP
 	const char *ifname = argin;
@@ -86,6 +89,8 @@ unsigned int nlqx_if_nametoindex(struct ioth *stack, const char *ifname) {
 
 static int cb_if_indextoname(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) msg;
+	(void) argin;
 	char *ifname = argenv;
 	char **retvalue = argout;
 	snprintf(ifname, IF_NAMESIZE, "%s", (char *) (attr[IFLA_IFNAME] + 1));
@@ -110,6 +115,8 @@ static void __add_if_nameindex(FILE *f, int if_index, char *if_name) {
 
 static int cb_if_nameindex(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) argin;
+	(void) argenv;
 	struct ifinfomsg *ifinfomsg = (struct ifinfomsg *) msg + 1;
 	if (attr[IFLA_IFNAME] != NULL) {
 		__add_if_nameindex(argout, ifinfomsg->ifi_index,
@@ -248,7 +255,7 @@ int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK,  NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE, 0, 0);
 	struct nlq_msg *linkinfo = nlq_createxattr();
-	uint32_t ifi_index = ifindex == -1 ? 0 : ifindex;
+	uint32_t ifi_index = (ifindex == (unsigned int) -1) ? 0 : ifindex;
 	nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_UNSPEC, .ifi_index=ifi_index);
 	if (ifname)
 		nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
@@ -285,7 +292,8 @@ struct nlq_if_nameindex *nlq_if_nameindex(void) {
 }
 
 void nlqx_if_freenameindex(struct ioth *stack, struct nlq_if_nameindex *ptr) {
-	return nlq_if_freenameindex(ptr);
+	(void) stack;
+	nlq_if_freenameindex(ptr);
 }
 
 int nlq_linksetupdown(unsigned int ifindex, int updown) {

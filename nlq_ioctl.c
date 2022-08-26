@@ -39,6 +39,9 @@ static inline void copy_ifname_no_alias(char *dst, char *src, int len) {
 
 static int cb_ioctl_SIOCGIFNAME(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) msg;
+	(void) argin;
+	(void) argenv;
 	struct ifreq *ifr = argout;
 	if (attr[IFLA_IFNAME] != NULL) {
 		snprintf(ifr->ifr_name, sizeof(ifr->ifr_name), "%s", (char *) (attr[IFLA_IFNAME] + 1));
@@ -59,6 +62,7 @@ static int nlq_ioctl_SIOCGIFNAME(nlq_request_handlers_table handlers_table, void
 
 static int cb_ioctl_SIOCGIFINFO(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) argenv;
 	const long *request = argin;
 	struct ifinfomsg *ifinfomsg = (struct ifinfomsg *) (msg + 1);
 	struct ifreq *ifr = argout;
@@ -83,7 +87,7 @@ static int cb_ioctl_SIOCGIFINFO(struct nlmsghdr *msg, struct nlattr **attr,
 			break;
 		case SIOCGIFHWADDR:
 			if (attr[IFLA_ADDRESS] != NULL) {
-				int len = attr[IFLA_ADDRESS]->nla_len;
+				unsigned int len = attr[IFLA_ADDRESS]->nla_len;
 				if (len > sizeof(ifr->ifr_hwaddr.sa_data)) len = sizeof(ifr->ifr_hwaddr.sa_data);
 				ifr->ifr_hwaddr.sa_family = ifinfomsg->ifi_type;
 				memcpy(ifr->ifr_hwaddr.sa_data, attr[IFLA_ADDRESS] + 1, len);
@@ -124,7 +128,7 @@ static int nlq_ioctl_SIOCGIFINFO(nlq_request_handlers_table handlers_table, void
 
 static int _nlq_SIOCGIFINDEX(nlq_request_handlers_table handlers_table, void *stackinfo, char *ifname) {
 	int ret_value;
-	struct ifreq ifr = {};
+	struct ifreq ifr = {0};
 	copy_ifname_no_alias(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	ret_value = nlq_ioctl_SIOCGIFINFO(handlers_table, stackinfo, SIOCGIFINDEX, &ifr);
 	if (ret_value >= 0) {
@@ -137,6 +141,7 @@ static int _nlq_SIOCGIFINDEX(nlq_request_handlers_table handlers_table, void *st
 }
 
 static inline int hwaddrlen(int arphrd_type) {
+	(void) arphrd_type;
 	/* XXX */
 	return 6;
 }
@@ -183,6 +188,7 @@ static int nlq_ioctl_SIOCSIFINFO(nlq_request_handlers_table handlers_table, void
 
 static int cb_ioctl_SIOCGINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) argenv;
 	const long *request = argin;
 	struct ifaddrmsg *ifaddrmsg = (struct ifaddrmsg *) (msg + 1);
 	struct ifreq *ifr = argout;
@@ -267,7 +273,7 @@ static int cb_ioctl_SIOCSINADDR(struct nlmsghdr *msg, struct nlattr **attr,
 	if (msgs->del_msg == NULL && attr[IFA_LOCAL] != NULL && attr[IFA_ADDRESS] != NULL &&
 			attr[IFA_LABEL] != NULL && strncmp((char *)(attr[IFA_LABEL]+1), ifr->ifr_name, sizeof(ifr->ifr_name)) == 0) {
 		int ifa_attr;
-		uint8_t newattr[IFA_MAX + 1] = {};
+		uint8_t newattr[IFA_MAX + 1] = {0};
 		msgs->del_msg = nlq_createmsg(RTM_DELADDR, NLM_F_REQUEST|NLM_F_ACK, 0, 0);
 		nlq_addstruct(msgs->del_msg, ifaddrmsg, .ifa_family=AF_INET,
 				.ifa_prefixlen = ifaddrmsg->ifa_prefixlen,
@@ -356,13 +362,15 @@ static int nlq_ioctl_SIOCSINADDR(nlq_request_handlers_table handlers_table, void
 
 static int cb_ioctl_SIOCGIFCONF(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) msg;
+	(void) argin;
 	struct ifconf *ifc = argout;
 	int *index = argenv;
 	if (attr[IFA_LOCAL] != NULL && attr[IFA_LABEL] != NULL) {
 		if (ifc->ifc_req == NULL)
 			*index += 1;
 		else{
-			if (ifc->ifc_len >= ((*index) + 1) * sizeof(struct ifreq)) {
+			if ((unsigned)ifc->ifc_len >= ((*index) + 1) * sizeof(struct ifreq)) {
 				struct ifreq *ifr = ifc->ifc_req + *index;
 				struct sockaddr_in *addr_in = (struct sockaddr_in *) &(ifr->ifr_addr);
 				snprintf(ifr->ifr_name, sizeof(ifr->ifr_name), "%s", (char *) (attr[IFA_LABEL] + 1));

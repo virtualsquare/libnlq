@@ -167,6 +167,11 @@ int nlqx_rtdialog(struct ioth *stack, struct nlq_msg *nlq_msg, nlq_doit_f cb,
 
 int nlq_process_null_cb(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) msg;
+	(void) attr;
+	(void) argin;
+	(void) argout;
+	(void) argenv;
 	return 0;
 }
 

@@ -51,7 +51,7 @@ struct nlq_msg *nlq_createmsg(uint16_t nlmsg_type, uint16_t nlmsg_flags, uint32_
 			free(nlq_msg);
 			return NULL;
 		} else {
-			static _Atomic int seq;
+			static _Atomic unsigned int seq;
 			struct nlmsghdr hdr = {
 				.nlmsg_len = 0,
 				.nlmsg_type = nlmsg_type,

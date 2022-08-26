@@ -44,6 +44,9 @@
 
 static int cb_nlq_proc_net_dev(struct nlmsghdr *msg, struct nlattr **attr,
 		const void *argin, void *argout, void *argenv) {
+	(void) msg;
+	(void) argin;
+	(void) argenv;
 	static const char *pndformat =
 		"%8u %7u %4u %4u %4u %5u %10u %9u %8u %7u %4u %4u %4u %5u %7u %10u";
 #if __WORDSIZE == 64

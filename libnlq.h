@@ -283,6 +283,10 @@ static inline int nlqx_open(struct ioth *stack, int protocol) {
 	return fd;
 }
 
+static inline ssize_t nlq_sendmsg(int fd, struct nlq_msg *nlq_msg) {
+	return ioth_send(fd, nlq_msg->nlq_packet, nlq_msg->nlq_size, 0);
+}
+
 static inline ssize_t nlq_complete_send_freemsg(int fd, struct nlq_msg *nlq_msg) {
 	ssize_t retval;
 	nlq_complete(nlq_msg);
