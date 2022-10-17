@@ -99,7 +99,7 @@ Netlink messages:
 Once the netlink message has been sent the reply message (or sequence of messages) can be received and parsed using `nlq_recv_process_rtreply`. For each packet received `nlq_recv_process_rtreply` uses a callback function to process the results.
 The three opaque arguments `argin, argout, argenv` can be used to exchange data with the callback function: the request(argin), the result(argout), and the private data of the environment(argenv), respectively.
 
-The most effective way to use the low level interface is provided by `nlq_rtconversation`.
+The most effective way to use the low level interface is provided by `nlq_rtdialog`.
 This function is a short-cut for the entire sequence: open-complete-send-free-recv-process-reply-close
 
 The implementation of a function like `if_nametoindex` can be as simple as this:
@@ -122,7 +122,7 @@ unsigned int my_n2i(const char *ifname) {
   struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST, 0, 0);
   nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
   nlq_addattr(msg, IFLA_IFNAME, ifname, strlen(ifname) + 1);
-  error = nlq_rtconversation(msg, cb_my_n2i, NULL, &retvalue, NULL);
+  error = nlq_rtdialog(msg, cb_my_n2i, NULL, &retvalue, NULL);
   return (error < 0) ? nlq_return_errno(error) : retvalue;
 }
 
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
 `my_n2i` creates the request creating a `RTM_GETLINK`, `NLM_F_REQUEST` packet. Then it adds the `ifinfomsg` header,
 assigning just the value of the field `ifi_family`. (This macro permits the inizialization of several fields).
 It further adds an attribute `IFLA_IFNAME` to the request.
-Now the packet is complete and `nlq_rtconversation` manages all the netlink conversation calling `cb_my_n2i`
+Now the packet is complete and `nlq_rtdialog` manages all the netlink dialog calling `cb_my_n2i`
 if it succeeds (and parsing the error message otherwise).
 
 Let us consider a different implementation using a DUMP request.
@@ -163,7 +163,7 @@ unsigned int dump_n2i(const char *ifname) {
   int error;
   struct nlq_msg *msg = nlq_createmsg(RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP, 0, 0);
   nlq_addstruct(msg, ifinfomsg, .ifi_family=AF_INET);
-  error = nlq_rtconversation(msg, cb_dump_n2i, ifname, &retvalue, NULL);
+  error = nlq_rtdialog(msg, cb_dump_n2i, ifname, &retvalue, NULL);
   if (retvalue == 0)
     return nlq_return_errno(-ENODEV);
   else
@@ -204,7 +204,7 @@ unsigned int addlink(const char *ifname, char *type, char *data) {
   if (data)
     nlq_addattr(linkinfo, IFLA_INFO_DATA, data, strlen(data) + 1);
   nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
-  error = nlq_rtconversation(msg, nlq_process_null_cb, NULL, NULL, NULL);
+  error = nlq_rtdialog(msg, nlq_process_null_cb, NULL, NULL, NULL);
   return (error < 0) ? nlq_return_errno(error) : retvalue;
 }
 ```
@@ -329,20 +329,20 @@ One of the goals of this library is to simplify the management of configurations
 
 When a request comes from the very same process of the stack implementation it is possible to use the following function:
 ```C
-int nlq_server_rtconversation(struct nlq_msg *nlq_msg,
+int nlq_server_rtdialog(struct nlq_msg *nlq_msg,
     nlq_request_handlers_table handlers_table, void *stackinfo,
     nlq_doit_f cb, const void *argin, void *argout, void *argenv);
 ```
 
-This function plays the same role of `nlq_rtconversation` but it calls the implementation callbacks directly instead of exchanging Netlink packets and then it parses the reply using the `cb` callback function.
+This function plays the same role of `nlq_rtdialog` but it calls the implementation callbacks directly instead of exchanging Netlink packets and then it parses the reply using the `cb` callback function.
 
 The inline function
 ```C
-static inline int nlq_general_rtconversation(struct nlq_msg *nlq_msg,
+static inline int nlq_general_rtdialog(struct nlq_msg *nlq_msg,
     nlq_request_handlers_table handlers_table, void *stackinfo,
     nlq_doit_f cb, const void *argin, void *argout, void *argenv)
 ```
-calls `nlq_rtconversation` if `handlers_table` is NULL, `nlq_server_rtconversation` otherwise. In this way `nlq_general_rtconversation` avoid duplication of software: the same implementation can work properly on server side as well as on client side. An example of this is the support of netdevice obsolete ioctls.
+calls `nlq_rtdialog` if `handlers_table` is NULL, `nlq_server_rtdialog` otherwise. In this way `nlq_general_rtdialog` avoid duplication of software: the same implementation can work properly on server side as well as on client side. An example of this is the support of netdevice obsolete ioctls.
 
 ```C
 int nlq_server_ioctl(nlq_request_handlers_table handlers_table, void *stackinfo, unsigned long request, void *arg);
