@@ -115,7 +115,7 @@ int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, c
 /* like "ip link del $ifname" (ifname can be NULL or ifindex can be 0)*/
 int nlq_iplink_del(const char *ifname, unsigned int ifindex);
 
-/* it writes in f the same contents of /proc/net/file (retrieved by netlink) */
+/* it writes in f the same contents of /proc/net/dev (retrieved by netlink) */
 int nlq_proc_net_dev(FILE *f);
 
 /* utility family->addrlen conversion

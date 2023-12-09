@@ -26,7 +26,7 @@
 
 /*
  * struct nlq_msg:
- *   nlq_packet -> it is used by open_memstrem to copose the packet.
+ *   nlq_packet -> it is used by open_memstrem to compose the packet.
  *                 ts type is struct nlmsghdr * for direct access to the header fields
  *   nlq_size -> packet's length
  * (the following fields share the same location)
