@@ -251,7 +251,8 @@ int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_pre
 			ifindex);
 }
 
-int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex, const char *type, const char *data) {
+int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex, const char *type,
+		struct nlq_iplink_data *ifd, int nifd) {
 	int error;
 	struct nlq_msg *msg = nlq_createmsg(RTM_NEWLINK,  NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE, 0, 0);
 	struct nlq_msg *linkinfo = nlq_createxattr();
@@ -262,8 +263,12 @@ int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex
 	nlq_addattr(linkinfo, IFLA_INFO_KIND, type, strlen(type) + 1);
 	if (ifindex != ifi_index)
 		nlq_addattr(msg, IFLA_NEW_IFINDEX, &ifi_index, sizeof(ifi_index));
-	if (data)
-		nlq_addattr(linkinfo, IFLA_INFO_SLAVE_KIND, data, strlen(data) + 1);
+	if (nifd > 0) {
+		struct nlq_msg *infodata = nlq_createxattr();
+		for (int i = 0; i < nifd; i++)
+			nlq_addattr(infodata, ifd[i].tag, ifd[i].data, ifd[i].len);
+		nlq_addxattr(linkinfo, IFLA_INFO_DATA, infodata);
+	}
 	nlq_addxattr(msg, IFLA_LINKINFO, linkinfo);
 	error = nlqx_rtdialog(stack, msg, nlq_process_null_cb, NULL, NULL, NULL);
 	return nlq_return_errno(error);
@@ -316,8 +321,9 @@ int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr
 	return nlqx_iproute_del(NULL, family, dst_addr, dst_prefixlen, gw_addr, ifindex);
 }
 
-int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, const char *data) {
-	return nlqx_iplink_add(NULL, ifname, ifindex, type, data);
+int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type,
+		struct nlq_iplink_data *ifd, int nifd) {
+	return nlqx_iplink_add(NULL, ifname, ifindex, type, ifd, nifd);
 }
 
 int nlq_iplink_del(const char *ifname, unsigned int ifindex) {

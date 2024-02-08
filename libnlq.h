@@ -111,7 +111,14 @@ int nlq_ipaddr_del(int family, void *addr, int prefixlen, int ifindex);
 int nlq_iproute_add(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex);
 int nlq_iproute_del(int family, void *dst_addr, int dst_prefixlen, void *gw_addr, unsigned int ifindex);
 /* like "ip link add $ifname type $type" */
-int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type, const char *data);
+struct nlq_iplink_data {
+  int tag;
+  int len;
+  void *data;
+};
+#define nlq_iplink_strdata(t,s) &(struct nlq_iplink_data) {(t), strlen(s) + 1, (s)}, 1
+int nlq_iplink_add(const char *ifname, unsigned int ifindex, const char *type,
+		struct nlq_iplink_data *ifd, int nifd);
 /* like "ip link del $ifname" (ifname can be NULL or ifindex can be 0)*/
 int nlq_iplink_del(const char *ifname, unsigned int ifindex);
 
@@ -154,7 +161,7 @@ int nlqx_iproute_add(struct ioth *stack, int family, void *dst_addr, int dst_pre
 int nlqx_iproute_del(struct ioth *stack, int family, void *dst_addr, int dst_prefixlen, void *gw_addr,
 		unsigned int ifindex);
 int nlqx_iplink_add(struct ioth *stack, const char *ifname, unsigned int ifindex,
-		const char *type, const char *data);
+		const char *type, struct nlq_iplink_data *ifd, int nifd);
 int nlqx_iplink_del(struct ioth *stack, const char *ifname, unsigned int ifindex);
 
 int nlqx_proc_net_dev(struct ioth *stack, FILE *f);
